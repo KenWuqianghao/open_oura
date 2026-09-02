@@ -15,6 +15,14 @@ pub enum Error {
     CharacteristicNotFound(String),
     #[error("authentication failed: {0}")]
     Auth(String),
+    /// Pairing was attempted on a ring that already holds a key. Only a
+    /// factory-reset ring accepts `SetAuthKey`.
+    #[error("ring is not in factory-reset state (auth state {state:#04x}: {reason}); factory-reset it first")]
+    NotFactoryReset { state: u8, reason: &'static str },
+    /// The ring answered `SetAuthKey` with a non-zero status byte. `0x05` is
+    /// "production tests missing" in the official app.
+    #[error("set_auth_key rejected with status {0:#04x}")]
+    SetKeyRejected(u8),
     #[error("protocol error: {0}")]
     Protocol(String),
     #[error(transparent)]

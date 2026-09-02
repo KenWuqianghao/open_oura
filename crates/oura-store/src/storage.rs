@@ -9,9 +9,15 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use rusqlite::{params, Connection, OptionalExtension};
 
-use crate::error::Result;
+use crate::error::{Error, Result};
 use oura_protocol::device::{Battery, DeviceInfo};
 use oura_protocol::events::RingEvent;
+
+/// The schema this build writes (`PRAGMA user_version`). Bump it together with a
+/// migration step in [`Store::migrate`] whenever a table/index changes: the DB
+/// now ships inside the iOS app, so older files must upgrade in place and newer
+/// files must be refused rather than silently misread.
+pub const SCHEMA_VERSION: i64 = 2;
 
 const SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS device (
@@ -87,14 +93,54 @@ impl Store {
         let _ = conn.query_row("PRAGMA journal_mode=WAL", [], |r| r.get::<_, String>(0));
         let _ = conn.execute_batch("PRAGMA synchronous=NORMAL;");
         conn.execute_batch(SCHEMA)?;
-        Ok(Self { conn })
+        let store = Self { conn };
+        store.migrate()?;
+        Ok(store)
     }
 
     /// Open an in-memory database (useful for tests).
     pub fn open_in_memory() -> Result<Self> {
         let conn = Connection::open_in_memory()?;
         conn.execute_batch(SCHEMA)?;
-        Ok(Self { conn })
+        let store = Self { conn };
+        store.migrate()?;
+        Ok(store)
+    }
+
+    /// Bring an older file up to [`SCHEMA_VERSION`]. Version 0 is both a fresh
+    /// file and every pre-versioning file (their tables are identical to v1).
+    /// Writing the version is tolerated to fail on a read-only seed DB, like the
+    /// WAL switch above.
+    fn migrate(&self) -> Result<()> {
+        let found = self.schema_version()?;
+        if found > SCHEMA_VERSION {
+            return Err(Error::SchemaTooNew {
+                found,
+                supported: SCHEMA_VERSION,
+            });
+        }
+        if found < 2 {
+            // v2: indexes for the ring clock (capture order) and time-range reads.
+            self.conn.execute_batch(
+                "CREATE INDEX IF NOT EXISTS idx_events_serial_captured
+                     ON events(serial, captured_unix, id);
+                 CREATE INDEX IF NOT EXISTS idx_events_serial_ts
+                     ON events(serial, ring_timestamp);",
+            )?;
+        }
+        if found != SCHEMA_VERSION {
+            let _ = self
+                .conn
+                .execute_batch(&format!("PRAGMA user_version = {SCHEMA_VERSION};"));
+        }
+        Ok(())
+    }
+
+    /// The file's `PRAGMA user_version` (0 for a fresh or pre-versioning file).
+    pub fn schema_version(&self) -> Result<i64> {
+        Ok(self
+            .conn
+            .query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0))?)
     }
 
     /// Record/refresh device metadata.
@@ -184,8 +230,21 @@ impl Store {
         Ok(())
     }
 
+    /// Forget the incremental-sync cursor (next drain starts from zero). Used
+    /// after a factory reset / fresh pairing, when the ring clock restarted and a
+    /// stale high cursor would make every sync come back empty.
+    pub fn reset_cursor(&self, serial: &str) -> Result<()> {
+        self.set_cursor(serial, 0)
+    }
+
     /// Insert an event, ignoring exact duplicates. Returns true if a row was added.
     pub fn insert_event(&self, serial: &str, ev: &RingEvent) -> Result<bool> {
+        self.insert_event_at(serial, ev, now_unix())
+    }
+
+    /// [`Self::insert_event`] with an explicit capture time — for imports and for
+    /// tests that need deterministic boot epochs.
+    pub fn insert_event_at(&self, serial: &str, ev: &RingEvent, captured_unix: i64) -> Result<bool> {
         let decoded = ev
             .decoded
             .as_ref()
@@ -201,7 +260,7 @@ impl Store {
                 ev.timestamp as i64,
                 ev.body,
                 decoded,
-                now_unix(),
+                captured_unix,
             ],
         )?;
         Ok(changed > 0)
@@ -269,6 +328,70 @@ impl Store {
             })?
             .collect::<std::result::Result<Vec<_>, _>>()?;
         Ok(rows)
+    }
+
+    /// Every event's `(ring_timestamp, captured_unix, id)` for `serial`, in
+    /// capture order — the cheap input for boot-epoch (ring clock) recovery. No
+    /// JSON is loaded.
+    pub fn event_times(&self, serial: &str) -> Result<Vec<(i64, i64, i64)>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT ring_timestamp, captured_unix, id FROM events \
+             WHERE serial = ?1 ORDER BY captured_unix, id",
+        )?;
+        let rows = stmt
+            .query_map(params![serial], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        Ok(rows)
+    }
+
+    /// Decoded events for `serial` as `(id, ring_timestamp, tag, decoded_json,
+    /// captured_unix)` in capture order, optionally restricted to `tags` and to
+    /// events captured after `captured_after`.
+    #[allow(clippy::type_complexity)]
+    pub fn decoded_events_filtered(
+        &self,
+        serial: &str,
+        tags: Option<&[u8]>,
+        captured_after: Option<i64>,
+    ) -> Result<Vec<(i64, i64, u8, String, i64)>> {
+        let mut sql = String::from(
+            "SELECT id, ring_timestamp, tag, decoded_json, captured_unix FROM events \
+             WHERE serial = ?1 AND decoded_json IS NOT NULL",
+        );
+        if let Some(tags) = tags {
+            if tags.is_empty() {
+                return Ok(Vec::new());
+            }
+            let list: Vec<String> = tags.iter().map(|t| t.to_string()).collect();
+            sql.push_str(&format!(" AND tag IN ({})", list.join(",")));
+        }
+        if let Some(after) = captured_after {
+            sql.push_str(&format!(" AND captured_unix > {after}"));
+        }
+        sql.push_str(" ORDER BY captured_unix, id");
+        let mut stmt = self.conn.prepare(&sql)?;
+        let rows = stmt
+            .query_map(params![serial], |r| {
+                Ok((
+                    r.get::<_, i64>(0)?,
+                    r.get::<_, i64>(1)?,
+                    r.get::<_, i64>(2)? as u8,
+                    r.get::<_, String>(3)?,
+                    r.get::<_, i64>(4)?,
+                ))
+            })?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        Ok(rows)
+    }
+
+    /// Capture time of the newest stored event for `serial`, if any.
+    pub fn newest_captured_unix(&self, serial: &str) -> Result<Option<i64>> {
+        let v: Option<i64> = self.conn.query_row(
+            "SELECT MAX(captured_unix) FROM events WHERE serial = ?1",
+            params![serial],
+            |r| r.get(0),
+        )?;
+        Ok(v)
     }
 
     /// Distinct device serials that have stored events.
@@ -367,6 +490,82 @@ mod tests {
 
         let counts = store.event_counts("S1").unwrap();
         assert_eq!(counts, vec![("debug_event".to_string(), 1)]);
+    }
+
+    #[test]
+    fn fresh_store_is_at_current_schema_version() {
+        let store = Store::open_in_memory().unwrap();
+        assert_eq!(store.schema_version().unwrap(), SCHEMA_VERSION);
+        let idx: i64 = store
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='idx_events_serial_captured'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(idx, 1);
+    }
+
+    #[test]
+    fn legacy_file_migrates_in_place_and_newer_file_is_refused() {
+        let dir = std::env::temp_dir().join(format!("oura-store-mig-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("legacy.db");
+        let _ = std::fs::remove_file(&path);
+        {
+            // A pre-versioning file: tables only, user_version 0.
+            let conn = Connection::open(&path).unwrap();
+            conn.execute_batch(SCHEMA).unwrap();
+        }
+        let store = Store::open(&path).unwrap();
+        assert_eq!(store.schema_version().unwrap(), SCHEMA_VERSION);
+        drop(store);
+        {
+            let conn = Connection::open(&path).unwrap();
+            conn.execute_batch("PRAGMA user_version = 99;").unwrap();
+        }
+        let err = match Store::open(&path) {
+            Err(e) => e,
+            Ok(_) => panic!("a newer schema must be refused"),
+        };
+        assert!(matches!(err, Error::SchemaTooNew { found: 99, .. }), "{err}");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn event_times_and_filters_follow_capture_order() {
+        let store = Store::open_in_memory().unwrap();
+        let mk = |tag: u8, ts: u32, body: u8| RingEvent {
+            tag,
+            name: oura_protocol::events::event_name(tag),
+            timestamp: ts,
+            body: vec![body],
+            decoded: Some(serde_json::json!({"n": body})),
+        };
+        store.insert_event_at("S1", &mk(0x42, 5_000_000, 1), 1_000).unwrap();
+        store.insert_event_at("S1", &mk(0x85, 10, 2), 2_000).unwrap();
+        store.insert_event_at("S1", &mk(0x42, 20, 3), 3_000).unwrap();
+        let times: Vec<(i64, i64)> = store
+            .event_times("S1")
+            .unwrap()
+            .into_iter()
+            .map(|(ds, cap, _)| (ds, cap))
+            .collect();
+        assert_eq!(times, [(5_000_000, 1_000), (10, 2_000), (20, 3_000)]);
+        let only_42 = store
+            .decoded_events_filtered("S1", Some(&[0x42]), None)
+            .unwrap();
+        assert_eq!(only_42.len(), 2);
+        let recent = store
+            .decoded_events_filtered("S1", None, Some(1_500))
+            .unwrap();
+        assert_eq!(recent.len(), 2);
+        assert_eq!(store.newest_captured_unix("S1").unwrap(), Some(3_000));
+        assert_eq!(store.newest_captured_unix("nope").unwrap(), None);
+        store.set_cursor("S1", 77).unwrap();
+        store.reset_cursor("S1").unwrap();
+        assert_eq!(store.cursor("S1").unwrap(), 0);
     }
 
     #[test]

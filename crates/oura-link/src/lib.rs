@@ -8,7 +8,9 @@ pub mod ble;
 pub mod client;
 pub mod error;
 mod history;
+pub mod pair;
 pub mod transport;
 
 pub use client::OuraClient;
 pub use error::{Error, Result};
+pub use pair::{pair, probe, FeaturePlan, PairOptions, PairReport, PairStage, ProbeReport};

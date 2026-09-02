@@ -22,3 +22,5 @@ btleplug = { version = "0.11", optional = true }
 [features]
 default = ["ble"]
 ble = ["dep:btleplug"]
+# Expose the scripted `transport::mock::MockTransport` to downstream crates' tests.
+mock = []

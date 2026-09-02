@@ -6,7 +6,7 @@ use crate::error::{Error, Result};
 use crate::history::{decode_batch, validate_batch};
 use crate::transport::{transact_until, Transport};
 use oura_protocol::auth::{encrypt_nonce, AuthResult};
-use oura_protocol::device::{self, Battery, Capability, DeviceInfo};
+use oura_protocol::device::{self, Battery, Capability, DeviceInfo, RingGeneration};
 use oura_protocol::events::RingEvent;
 use oura_protocol::protocol::{self, feature, feature_mode, Packet};
 
@@ -99,7 +99,7 @@ const DRAIN_QUIET: Duration = Duration::from_secs(6);
 /// gives no progress reporting. A few thousand events (~1 min of transfer) keeps
 /// the per-batch round-trip overhead negligible while bounding what a drop can
 /// lose and yielding regular `bytes_left` progress updates.
-const EXT_BATCH_MAX_EVENTS: u16 = 4096;
+pub const EXT_BATCH_MAX_EVENTS: u16 = 4096;
 /// A feature's reported status (`0x2f` ext `0x21`): mode/status/state/subscription.
 #[derive(Clone, Copy, Debug)]
 pub struct FeatureStatus {
@@ -129,6 +129,7 @@ impl FeatureStatus {
 pub struct OuraClient<T: Transport> {
     transport: T,
     quiet: Duration,
+    batch_events: u16,
 }
 
 impl<T: Transport> OuraClient<T> {
@@ -137,6 +138,7 @@ impl<T: Transport> OuraClient<T> {
         Self {
             transport,
             quiet: DEFAULT_QUIET,
+            batch_events: EXT_BATCH_MAX_EVENTS,
         }
     }
 
@@ -144,6 +146,24 @@ impl<T: Transport> OuraClient<T> {
     pub fn with_quiet(mut self, quiet: Duration) -> Self {
         self.quiet = quiet;
         self
+    }
+
+    /// Override the number of events requested per extended-drain batch (the
+    /// cursor is checkpointed once per batch). Smaller batches let a caller with a
+    /// short time budget — an iOS background refresh task — still make durable
+    /// progress; `0` keeps the library default ([`EXT_BATCH_MAX_EVENTS`]).
+    pub fn with_batch_events(mut self, events: u16) -> Self {
+        self.batch_events = if events == 0 {
+            EXT_BATCH_MAX_EVENTS
+        } else {
+            events
+        };
+        self
+    }
+
+    /// Events requested per extended-drain batch.
+    pub fn batch_events(&self) -> u16 {
+        self.batch_events
     }
 
     /// Borrow the underlying transport (e.g. to disconnect a BLE link).
@@ -261,9 +281,53 @@ impl<T: Transport> OuraClient<T> {
 
     // --- auth & session ----------------------------------------------------
 
+    /// Run the app-auth challenge with a 16-byte key and return the ring's verdict
+    /// as data — a non-success state is NOT an error here. Pairing and probing
+    /// use this to tell a factory-reset ring (`InFactoryReset`) from one owned by
+    /// another app (`AuthenticationError` / `NotOriginalOnboardedDevice`).
+    ///
+    /// Errors only for transport/protocol failures (no nonce, no verdict).
+    pub async fn auth_state(&self, key: &[u8; 16]) -> Result<AuthResult> {
+        let (result, _nonce) = self.auth_exchange(key).await?;
+        Ok(result)
+    }
+
     /// Run the app-auth challenge with a 16-byte key. Must be repeated per
-    /// connection on rings that have a key installed.
+    /// connection on rings that have a key installed. A non-success verdict is
+    /// an [`Error::Auth`] with an actionable hint; use [`Self::auth_state`] to
+    /// read the verdict instead.
     pub async fn authenticate(&self, key: &[u8; 16]) -> Result<AuthResult> {
+        let (result, nonce) = self.auth_exchange(key).await?;
+        if result.is_success() {
+            return Ok(result);
+        }
+        // Rich, actionable failure: the exact state byte + what it means, plus the
+        // bytes exchanged (never the key), so a report pins down key-vs-transport.
+        let state = auth_state_byte(result);
+        let hint = match result {
+            AuthResult::AuthenticationError => {
+                "the ring rejected the key — it does not match THIS ring's installed key \
+                 (re-export the key from the phone that onboarded this exact ring)"
+            }
+            AuthResult::InFactoryReset => {
+                "the ring is factory-reset (no key installed yet) — pair/onboard it first"
+            }
+            AuthResult::NotOriginalOnboardedDevice => {
+                "the ring is bonded to a different onboarding — its key is not the one in use"
+            }
+            _ => "unexpected auth state",
+        };
+        Err(Error::Auth(format!(
+            "ring rejected auth: state=0x{state:02x} ({result:?}) — {hint}. \
+             nonce={} ({}B)",
+            hex::encode(&nonce),
+            nonce.len()
+        )))
+    }
+
+    /// The nonce → AES → authenticate exchange shared by `auth_state` and
+    /// `authenticate`. Returns the verdict and the nonce (for diagnostics).
+    async fn auth_exchange(&self, key: &[u8; 16]) -> Result<(AuthResult, Vec<u8>)> {
         // Never log key bytes (not even a slice — that leaks key material). Only the
         // length; "is it the right key" is answered by the Swift-side hashed fingerprint
         // and whether auth ultimately succeeds.
@@ -311,39 +375,16 @@ impl<T: Transport> OuraClient<T> {
 
         let result = AuthResult::from(state);
         tracing::debug!(state = %format!("0x{state:02x}"), ?result, "auth: step 4 — ring verdict");
-        if result.is_success() {
-            Ok(result)
-        } else {
-            // Rich, actionable failure: the exact state byte + what it means, plus the
-            // bytes exchanged (never the key), so a report pins down key-vs-transport.
-            let hint = match result {
-                AuthResult::AuthenticationError => {
-                    "the ring rejected the key — it does not match THIS ring's installed key \
-                     (re-export the key from the phone that onboarded this exact ring)"
-                }
-                AuthResult::InFactoryReset => {
-                    "the ring is factory-reset (no key installed yet) — pair/onboard it first"
-                }
-                AuthResult::NotOriginalOnboardedDevice => {
-                    "the ring is bonded to a different onboarding — its key is not the one in use"
-                }
-                _ => "unexpected auth state",
-            };
-            Err(Error::Auth(format!(
-                "ring rejected auth: state=0x{state:02x} ({result:?}) — {hint}. \
-                 nonce={} ({}B)",
-                hex::encode(&nonce),
-                nonce.len()
-            )))
-        }
+        Ok((result, nonce))
     }
 
-    /// Install a new 16-byte auth key. Only valid on a factory-reset ring.
+    /// Install a new 16-byte auth key. Only valid on a factory-reset ring; any
+    /// other state answers with a non-zero status ([`Error::SetKeyRejected`]).
     pub async fn set_auth_key(&self, key: &[u8; 16]) -> Result<()> {
         let packets = self.request(&protocol::req_set_auth_key(key)).await?;
         match Self::find(&packets, 0x25).and_then(|p| p.payload.first().copied()) {
             Some(0x00) => Ok(()),
-            Some(other) => Err(Error::Auth(format!("set_auth_key status {other:#04x}"))),
+            Some(other) => Err(Error::SetKeyRejected(other)),
             None => Err(Error::Protocol("no set_auth_key response".into())),
         }
     }
@@ -383,8 +424,7 @@ impl<T: Transport> OuraClient<T> {
     /// before event fetches or live feature work.
     pub async fn setup_app_stream(&self) -> Result<()> {
         let hw = self.hardware_id().await.unwrap_or_default();
-        let is_ring5 = hw.rsplit('_').next() == Some("05");
-        if !is_ring5 {
+        if !RingGeneration::from_hardware_id(&hw).is_ring5() {
             tracing::debug!("skipping Ring 5 app-stream setup for hardware_id={hw:?}");
             return Ok(());
         }
@@ -463,7 +503,7 @@ impl<T: Transport> OuraClient<T> {
             if use_extended {
                 let ext = self
                     .request_batch(
-                        &protocol::req_ext_get_event((start as u64) * 100, EXT_BATCH_MAX_EVENTS, 0),
+                        &protocol::req_ext_get_event((start as u64) * 100, self.batch_events, 0),
                         batch_terminal,
                     )
                     .await?;
@@ -839,6 +879,17 @@ fn parse_acm_frame(frame: &[u8]) -> Vec<AcmSample> {
     out
 }
 
+/// The wire byte for an [`AuthResult`] (inverse of `AuthResult::from(u8)`).
+pub fn auth_state_byte(result: AuthResult) -> u8 {
+    match result {
+        AuthResult::Success => 0x00,
+        AuthResult::AuthenticationError => 0x01,
+        AuthResult::InFactoryReset => 0x02,
+        AuthResult::NotOriginalOnboardedDevice => 0x03,
+        AuthResult::Unknown(b) => b,
+    }
+}
+
 /// Compute bpm from an inter-beat interval, ignoring implausible values.
 fn bpm_from_ibi(ibi_ms: u16) -> Option<u16> {
     if (300..=2000).contains(&ibi_ms) {
@@ -918,6 +969,41 @@ mod tests {
             .writes()
             .iter()
             .all(|request| request.first() != Some(&0x10)));
+    }
+
+    #[tokio::test]
+    async fn batch_size_override_is_sent_on_the_wire() {
+        let mock = MockTransport::new();
+        mock.on("280100", &["290100"]);
+        // 512 events = 0x0200 little-endian at the end of the ExtGetEvent request.
+        mock.on(
+            "2f0c410000000000000000000002",
+            &["2f09430600aa430364bbcc2f0a42010000000000000000"],
+        );
+        let client = OuraClient::new(mock)
+            .with_quiet(Duration::from_millis(20))
+            .with_batch_events(512);
+        assert_eq!(client.batch_events(), 512);
+        let outcome = client.drain_events(0, |_| true, |_| true).await.unwrap();
+        assert_eq!(outcome.events_synced, 1);
+    }
+
+    #[tokio::test]
+    async fn auth_state_reports_factory_reset_without_error() {
+        let mock = MockTransport::new();
+        mock.on("2f012b", &["2f102c0e2d6a0a08c99b4365f458e6e97382"]);
+        mock.on("2f112da38a8772d3acb6db5c2b516dd56987c8", &["2f022e02"]);
+        let client = OuraClient::new(mock).with_quiet(Duration::from_millis(20));
+        let key: [u8; 16] = hex::decode("4431967d8bacc2659743142b68391d9a")
+            .unwrap()
+            .try_into()
+            .unwrap();
+        assert_eq!(
+            client.auth_state(&key).await.unwrap(),
+            AuthResult::InFactoryReset
+        );
+        let err = client.authenticate(&key).await.unwrap_err();
+        assert!(err.to_string().contains("factory-reset"), "{err}");
     }
 
     #[test]

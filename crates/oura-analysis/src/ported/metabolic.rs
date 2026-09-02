@@ -44,6 +44,18 @@ pub fn bmr_schofield(age_years: f64, sex: u8, weight_kg: f64) -> f64 {
     }
 }
 
+/// Active calories for one minute at `met` for a `weight_kg` body — the
+/// `max(met − 1, 0) · kg / 60` rule the daily activity summary uses (the resting
+/// MET is subtracted so basal energy is not counted twice).
+pub fn met_active_kcal_per_min(met: f64, weight_kg: f64) -> f64 {
+    (met - 1.0).max(0.0) * weight_kg / 60.0
+}
+
+/// Basal energy for one hour, from a daily BMR (`bmr_schofield`).
+pub fn bmr_kcal_per_hour(bmr_kcal_day: f64) -> f64 {
+    bmr_kcal_day / 24.0
+}
+
 /// Walking distance from step count, ecore `actinfo_steps_to_meters @ 0x1cd624`:
 /// `0.762 m` per step.
 pub fn steps_to_meters(steps: u32) -> u32 {
@@ -65,6 +77,14 @@ mod tests {
     fn bmr_adult_male() {
         // 30-60 band: 11.472*80 + 873.1 = 1790.86
         assert!((bmr_schofield(40.0, 0, 80.0) - 1790.86).abs() < 0.01);
+    }
+
+    #[test]
+    fn active_kcal_per_minute() {
+        // MET 3 at 75 kg: (3-1)*75/60 = 2.5 kcal/min; resting MET adds nothing.
+        assert!((met_active_kcal_per_min(3.0, 75.0) - 2.5).abs() < 1e-9);
+        assert_eq!(met_active_kcal_per_min(0.9, 75.0), 0.0);
+        assert!((bmr_kcal_per_hour(2400.0) - 100.0).abs() < 1e-9);
     }
 
     #[test]

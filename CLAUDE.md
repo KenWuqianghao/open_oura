@@ -1,33 +1,45 @@
 # open_oura — repo guide for agents
 
-Independent, cloud-free client for the Oura ring: BLE sync + decode in Rust, the daily
-health computations in Rust, the ML models (sleep / CVA / activity) as decrypted
-TorchScript. See `README.md` and `docs/` for the reverse-engineering details.
+Library base for cloud-free access to the Oura ring: the BLE protocol, the event
+decoders, the sync drain, on-ring pairing, SQLite storage, and the ecore-ported metric
+algorithms. **No app code lives here.** The web dashboard, the iOS app (SwiftUI +
+UniFFI `oura-core`), `oura-summary`, and the model runners live in
+https://github.com/Th0rgal/open_health, which consumes these crates as git dependencies.
 
-## ⚠️ Two clients render the same data — keep them in sync
+## Crates (fetch → interpret → apply; see `docs/architecture.md`)
 
-There are **two user-facing apps** and a change usually belongs in **both**:
+- `oura-protocol`: pure framing, request builders, auth crypto, event decoders,
+  `RingGeneration`.
+- `oura-link`: `Transport` trait, `OuraClient` (auth, sync drain, features, live
+  streams), `pair::{probe, pair}`; btleplug behind the `ble` feature; a scripted
+  `transport::mock::MockTransport` behind the `mock` feature.
+- `oura-analysis`: `ported::*` (ecore ports, cite the source address) and `beats`
+  (generic beat/window utilities).
+- `oura-store`: SQLite with `PRAGMA user_version` migrations (`SCHEMA_VERSION`).
+- `oura-cli`: the `oura` binary (`scan`, `probe`, `pair`, `info`, `sync`, …).
 
-- **Web dashboard** — `dashboard/web/` (vanilla JS) served by `crates/oura-cli/src/dashboard.rs`.
-- **Native iOS app** — `apps/ios/OuraApp/` (SwiftUI) on `crates/oura-core` (UniFFI).
+## Rules
 
-Both render the JSON from the **single shared brain `crates/oura-summary` (`build_summary`)**.
+- Hard cutover: no backward-compat shims. Move the logic, delete the old path, and update
+  the docs in the same change.
+- Reusable protocol/library work goes here. Product, UI, model, and summary work goes to
+  `open_health`. When `open_health` needs a new query or algorithm, add it here first and
+  bump the git `rev` there.
+- Local iteration: `open_health/Cargo.toml` carries
+  `[patch."https://github.com/Th0rgal/open_oura"]` entries that point at
+  `../open_oura/crates/*`. Remove them before a release and bump the `rev` pins instead.
+- Never commit keys (`*.key`), databases, captures, or model files (see `.gitignore`).
+- Where a change goes: a new decoder → `oura-protocol::events` plus a test with captured
+  bytes; a new BLE command → a `protocol` builder plus an `OuraClient` method; a new metric
+  → `oura-analysis` plus `docs/algorithms/`; a new table or query → `oura-store` with a
+  `SCHEMA_VERSION` bump, a migration step, and a test.
+- `oura-link` tests do no I/O: script `MockTransport` (`on`, `on_sequence`, `on_prefix`).
+- Use the `1.93.0` toolchain (`cargo +1.93.0 …`); the default `stable` on this machine is
+  too old for the lock file.
+- Before you finish: `cargo +1.93.0 test --workspace` and
+  `cargo +1.93.0 build -p oura-link --no-default-features` (the iOS build) must pass.
 
-Before you finish a feature, check it against **`docs/clients-web-and-ios.md`** (the
-feature ↔ feature map) and apply it where it belongs:
+## Writing
 
-- **New computed metric/field** → add once in `oura-summary`; render in **both** `app.js`
-  **and** `OuraApp.swift`.
-- **New visualization/UI** → do it in **both** `app.js` **and** `OuraApp.swift`.
-- **New model** → wire **both** a `tools/run_*_model.py` (web `PythonRunner`) **and** the
-  iOS on-device path (`apps/ios/OuraApp/TorchBridge.mm` + a `*Model.swift`).
-
-If you intentionally do only one client, say so and note it in the "Known gaps" section of
-`docs/clients-web-and-ios.md`.
-
-## Building / running
-
-- Web dashboard: `oura dashboard` (see `dashboard/README.md`).
-- iOS (simulator): `apps/ios/OuraApp/build_run.sh` (model-free) or `build_run_torch.sh`
-  (on-device torch models). TestFlight: `apps/ios/TESTFLIGHT.md`.
-- Models, `libtorch`, `oura.db`, and auth keys are gitignored — never commit them.
+Write docs and commit messages in ASD-STE100 Simplified Technical English: short
+sentences, active voice, one meaning per word.

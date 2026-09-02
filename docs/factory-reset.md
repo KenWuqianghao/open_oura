@@ -101,13 +101,20 @@ and the only way back is another factory reset.
 To re-pair with this project instead:
 
 ```sh
+# optional: confirm the ring is really reset before you touch it
+oura --name "" probe
+
 # reinstalls the existing key file, so the event history stays attributable
-# to the same device; mints a new key only if the file is absent
+# to the same device; mints a new key only if the file is absent. Also sets the
+# ring clock, turns on daytime HR + SpO2 (--features core, the default), and
+# resets the sync cursor when a key was installed.
 oura --key-file oura-<serial>.key --name "" pair
 ```
 
 `--name ""` matters: a freshly reset ring does not advertise a local name matching
-the CLI's default `Oura` filter.
+the CLI's default `Oura` filter. `pair` refuses a ring that still holds another
+key (`ring is not in factory-reset state`): reset it first. The iOS app runs the
+same `oura_link::pair` flow on the phone.
 
 Bond order is worth thinking about when more than one host is involved. A reset
 ring accepts new bonds from anything; once provisioned, a central that is neither

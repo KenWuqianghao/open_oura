@@ -9,4 +9,5 @@
 //! open_oura's own heuristics; app-level activity classification now lives in
 //! `open_health`.)
 
+pub mod beats;
 pub mod ported;

@@ -51,13 +51,17 @@ oura scan
 # Device info (firmware, serial, capabilities; battery needs the key)
 oura --key-file key.hex info
 
-# Pair with a factory-reset ring: install + save a new auth key
-oura --name "Oura Ring 5" --key-file key.hex pair
+# Who owns this ring? factory-reset / paired with this key / owned elsewhere
+oura --name "" --key-file key.hex probe
+
+# Pair with a factory-reset ring: install + save a new auth key, set the clock,
+# turn on daytime HR + SpO2 (--features none|core|full). A reset ring has no name.
+oura --name "" --key-file key.hex pair
 
 # Wipe the ring (DESTRUCTIVE; requires --yes). See docs/factory-reset.md.
 oura --key-file key.hex factory-reset --yes
 
-# Show / enable measurement features (HR, SpO2 are off after a key-only pairing)
+# Show / enable measurement features (pair already enables HR + SpO2)
 oura --key-file key.hex features --enable-hr --enable-spo2
 
 # Drain history events into SQLite (incremental; app-style setup + flush/ack)
@@ -80,10 +84,13 @@ oura --db oura.db events
 oura --db oura.db redecode
 ```
 
-> After pairing a ring yourself, its measurement features (daytime HR, SpO2…) are
-> **off** - the official app turns them on at onboarding. Run `features --enable-hr
-> --enable-spo2` once, then the ring begins measuring and HR/IBI/HRV/SpO2 events
-> start accumulating (the ring decides when to measure, so allow a few minutes).
+> A self-paired ring starts with its measurement features (daytime HR, SpO2…)
+> **off** - the official app turns them on at onboarding. `pair` now does the same:
+> `--features core` (the default) sets daytime HR and SpO2 to automatic, `--features
+> full` also turns on real steps, exercise HR, and resting HR when it is off. The
+> ring decides when to measure, so allow a few minutes before HR/IBI/HRV/SpO2
+> events accumulate. `features --enable-hr --enable-spo2` still works on a ring
+> paired with an older build.
 
 Common flags are global: `--name` (scan name filter, default `Oura`), `--address`,
 `--scan-timeout`, `--db`, `--key-file`.
