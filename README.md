@@ -4,6 +4,9 @@ Reverse-engineering the Oura ring BLE protocol, plus reusable Rust libraries and
 a small independent, **cloud-free** client that reads your data straight from the
 ring.
 
+Looking for the app? The iOS app and web dashboard built on these crates live in
+[open_health](https://github.com/Th0rgal/open_health).
+
 Tested live against a Ring 3 Horizon and a Ring 5 (pairing, auth, and event sync
 confirmed on both). Designed for Ring 3/4/5, which share the same GATT layout,
 packet framing, and authentication flow.
@@ -36,19 +39,10 @@ offline. The one genuine cloud-only step is **workout auto-classification**
   `oura-link` fetch, `oura-analysis` metrics, `oura-store` SQLite, `oura-cli`).
   Start here: [`crates/README.md`](crates/README.md) and
   [`docs/architecture.md`](docs/architecture.md).
-- **`tools/`**: Python research bench for protocol exploration. `oura_protocol.py`
-  (full command matrix, auth, danger-gated ops, JSONL capture) and
-  `oura_realtime_listener.py`.
+- **`tools/`**: Python research bench for protocol exploration (`oura_protocol.py`,
+  `oura_realtime_listener.py`).
 - **`docs/`**: protocol and reverse-engineering reference (index below).
-- **`reverse/`, `captures/`**: local-only, gitignored. The decompiled app and raw
-  captures (which may contain serials, MACs, and auth keys).
-
-## App layer
-
-The web dashboard, iOS app, DNA explorer, blood PDF import, and model-running
-product surface now live in
-[`open_health`](https://github.com/Th0rgal/open_health). This repository is the
-Oura protocol/library base that `open_health` consumes.
+- **`reverse/`, `captures/`**: local-only, gitignored (decompiled app, raw captures).
 
 ## Quick start (Rust client)
 
