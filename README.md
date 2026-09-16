@@ -112,6 +112,10 @@ State-changing and destructive commands are hidden behind `--include-state` and
 - App-gated operations need the ring's 16-byte auth key (re-sent each connection).
   Captures and keys are gitignored. Never commit a key.
 
+## License
+
+MIT. See [LICENSE](LICENSE).
+
 ## Prior art
 
 ringverse Oura Ring 4 BLE notes:
