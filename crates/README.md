@@ -119,14 +119,14 @@ land. Each decoder has a unit test.
 | `temp_event` / `temp_period` / `sleep_temp` | `i16` LE / 100 | temperature °C (verified worn ~33 °C; 7 probes Ring 3, 3 Ring 5) |
 | `hrv_event` | pairs `(u8 hr, u8 rmssd)`, 5 min apart | avg HR + RMSSD (validated overnight: HR 40, RMSSD ~101 ms) |
 | **`green_ibi_quality_event` (`0x80`)** | `ibi=(b1&7)|(b0<<3)`, `q=(b1>>3)&3` | inter-beat intervals → HR (daytime; ~50 bpm resting) |
-| **`ibi_and_amplitude_event` (`0x60`)** | 14-byte bit-packed | 6× IBI ms + PPG amplitude → HR (validated overnight: 18k beats, median 41 bpm) |
+| **`ibi_and_amplitude_event` (`0x60`)** | 14-byte bit-packed | 6× IBI ms + PPG amplitude → HR. Median 41 bpm overnight on Ring 4 (370k beats) but with a fat fast tail (7 % of beats > 100 bpm, p95 139) that a Malik 20 % filter doesn't clean; a Gen 3 Horizon shows the same (13 %). The native parser emits only `timestamp/ibi/amp` per beat (no quality flag), so either the bit layout is partly wrong or the ring ships unfiltered beats — treat `hr_bpm` as raw, and prefer `green_ibi_quality` (`0x80`) when present |
 | **`spo2_r_pi_event` (`0x8b`)** | header + 3-byte `(R: u16 BE/16384, PI: u8/255×0.05)` | SpO2 R-ratio + perfusion index (validated overnight: R ~0.72, PI ~4%) |
 | `sleep_acm_period` (`0x72`) | 6 fixed-point floats | accelerometer MAD stats during sleep |
 | `sleep_period_information_2` (`0x6a`) | 10-byte `SleepPeriodInfo` (HR ×0.5, breath ÷8, …) | per-window sleep sample from `parse_api_sleep_period_info` |
 | `activity_information` | state + MET bytes (`<128: ×0.1`, else `12.8+(b-128)×0.2`) | state + MET levels |
 | `motion_event` | orientation `b0>>5`, axes signed `i8×8`, intensity nibbles | orientation + avg x/y/z + intensity (validated worn) |
 | `spo2_event` | header + `u8` per sample | SpO2 % series (decoder ready; not emitted by Ring 5 yet) |
-| `sleep_phase_*` | 2-bit codes, 4/byte | hypnogram deep/light/rem/awake (not emitted yet) |
+| `sleep_phase_*` | header byte (page index) + 2-bit codes, 4/byte | hypnogram deep/light/rem/awake. Gen 3 Horizon (fw 3.4.3) emits `sleep_phase_data` (`0x5a`) as numbered 14-byte pages: 52 × 30 s epochs each, ~21 pages a night. Not seen from Ring 4/5 yet |
 | `ambient` / `ehr_acm_intensity` | `u16` LE samples | raw values |
 | `time_sync` / `state_change` / `wear_event` / `alert` / debug | u32 / byte+text | as labelled |
 | `rtc_beacon` (`0x85`) | `u32 unix_s`, reserved bytes, trailer | precise 1-second wall-clock anchor |
@@ -195,8 +195,8 @@ captures (incl. a full overnight sync):
 real bytes** (the Ring 5 hasn't emitted these):
 - `activity_information` MET scale (`×0.1` / `12.8+(b-128)×0.2`) - from the
   decompile; no per-event ground truth (the trends CSV is daily aggregates).
-- `spo2_event` (`0x6f` summarized %), `sleep_phase_*` (hypnogram), `ambient`/`ehr`
-  u16 - logic clear, awaiting data.
+- `spo2_event` (`0x6f` summarized %), `ambient`/`ehr` u16 - logic clear, awaiting
+  data. (`sleep_phase_data` `0x5a` has since been confirmed on a Gen 3 Horizon.)
 
 **Sleep analysis is partial on-device.** After a full overnight sync the ring
 emitted only the **raw** streams (IBI, HRV, SpO2 R/PI, sleep temp, sleep ACM), not

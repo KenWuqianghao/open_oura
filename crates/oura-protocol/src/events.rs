@@ -402,7 +402,9 @@ fn decode_spo2(body: &[u8]) -> Option<serde_json::Value> {
 }
 
 /// Sleep-stage hypnogram: a header byte then 2-bit phase codes (4 per byte,
-/// MSB-first). Enum from the native `SleepPhase_OSSAv1`.
+/// MSB-first). Enum from the native `SleepPhase_OSSAv1`. A Gen 3 Horizon
+/// (fw 3.4.3) emits `sleep_phase_data` (`0x5a`) as numbered 14-byte pages:
+/// the header counts pages, each page holds 52 epochs of 30 s.
 fn decode_sleep_phases(body: &[u8]) -> Option<serde_json::Value> {
     const PHASE: [&str; 4] = ["deep", "light", "rem", "awake"];
     if body.len() < 2 {
@@ -420,7 +422,11 @@ fn decode_sleep_phases(body: &[u8]) -> Option<serde_json::Value> {
 /// `ibi_and_amplitude_event` (tag `0x60`): a fixed 14-byte packet holding 6
 /// inter-beat intervals (ms) and PPG amplitudes, bit-packed per the native
 /// `parse_api_ibi_and_amplitude_event`. Layout ported from the decompiled bit
-/// extraction; pending validation against real `0x60` captures.
+/// extraction. Overnight medians are right (41 bpm on Ring 4), but both Ring 4
+/// and a Gen 3 Horizon show 7-13 % of beats above 100 bpm during sleep, and
+/// the native output carries no per-beat quality flag, so the fast tail is
+/// either unfiltered ring beats or a partly wrong low-bit layout. Treat
+/// `hr_bpm` as raw; `green_ibi_quality` (`0x80`) is the cleaner series.
 fn decode_ibi_amplitude(body: &[u8]) -> Option<serde_json::Value> {
     if body.len() != 14 {
         return None;

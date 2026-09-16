@@ -536,14 +536,22 @@ impl<T: Transport> OuraClient<T> {
                     .request_tag(&protocol::req_get_event_ack(start), 0x11)
                     .await;
             }
-            if bytes_left == 0 {
-                break; // drained
-            }
             if !progressed {
+                if bytes_left == 0 {
+                    break; // drained: a pass returned nothing and the ring agrees
+                }
                 return Err(Error::Protocol(format!(
                     "ring reports {bytes_left} bytes of events left but the batch \
                      contained none — stopping instead of looping (cursor {start})"
                 )));
+            }
+            // `bytes_left == 0` alone is not proof the ring is drained: a Gen 3
+            // Horizon (fw 3.4.3) reports 0 on the first batch and keeps serving
+            // events on the next request, which used to leave a night's data on
+            // the ring. Keep pulling until a pass comes back empty; on rings that
+            // report accurately this costs one extra empty round-trip.
+            if bytes_left == 0 {
+                tracing::debug!(cursor = start, "ring reports drained; confirming with one more pass");
             }
         }
         Ok(SyncOutcome {
@@ -909,6 +917,8 @@ mod tests {
             "2f0c410000000000000000000010",
             &["2f09430600aa430364bbcc2f0a42010000000000000000"],
         );
+        // the confirming pass at cursor 2 comes back empty
+        mock.on("2f0c4100c8000000000000000010", &["2f0a42000000000000000000"]);
         let client = OuraClient::new(mock).with_quiet(Duration::from_millis(20));
         let outcome = client.drain_events(0, |_| true, |_| true).await.unwrap();
         assert_eq!(outcome.events_synced, 1);
@@ -918,6 +928,30 @@ mod tests {
             .writes()
             .iter()
             .all(|request| request.first() != Some(&0x10)));
+    }
+
+    #[tokio::test]
+    async fn drain_continues_past_a_zero_bytes_left_batch_that_carried_events() {
+        // Gen 3 Horizon fw 3.4.3: the first batch says bytes_left=0 yet the ring
+        // still serves events on the next cursor. Only an empty pass ends the drain.
+        let mock = MockTransport::new();
+        mock.on("280100", &["290100"]);
+        // cursor 0 → one event at t=1 ds, bytes_left=0
+        mock.on(
+            "2f0c410000000000000000000010",
+            &["2f09430600aa430364bbcc2f0a42010000000000000000"],
+        );
+        // cursor 2 (200 ms) → another event at t=2 ds, still bytes_left=0
+        mock.on(
+            "2f0c4100c8000000000000000010",
+            &["2f0a430700aa4304c801bbcc2f0a42010000000000000000"],
+        );
+        // cursor 3 (300 ms) → nothing: drained for real
+        mock.on("2f0c41002c010000000000000010", &["2f0a42000000000000000000"]);
+        let client = OuraClient::new(mock).with_quiet(Duration::from_millis(20));
+        let outcome = client.drain_events(0, |_| true, |_| true).await.unwrap();
+        assert_eq!(outcome.events_synced, 2);
+        assert_eq!(outcome.next_cursor, 3);
     }
 
     #[test]
