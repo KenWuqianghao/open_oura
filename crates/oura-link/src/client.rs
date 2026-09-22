@@ -339,7 +339,7 @@ impl<T: Transport> OuraClient<T> {
         let nonce = match packets.iter().find(|p| p.ext_tag() == Some(0x2c)) {
             Some(p) if p.payload.len() > 1 => p.payload[1..].to_vec(),
             _ => {
-                return Err(Error::Auth(format!(
+                return Err(Error::NoAuthReply(format!(
                     "no nonce response (expected ext 0x2c). ring sent {} packet(s): [{}]",
                     packets.len(),
                     dump_packets(&packets)
@@ -362,7 +362,7 @@ impl<T: Transport> OuraClient<T> {
         {
             Some(s) => s,
             None => {
-                return Err(Error::Auth(format!(
+                return Err(Error::NoAuthReply(format!(
                     "no authenticate response (expected ext 0x2e). ring sent {} packet(s): [{}]. \
                      nonce was {} ({}B)",
                     packets.len(),

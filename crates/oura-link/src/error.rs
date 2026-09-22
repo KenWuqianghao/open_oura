@@ -13,8 +13,14 @@ pub enum Error {
     ConnectTimeout,
     #[error("characteristic not found: {0}")]
     CharacteristicNotFound(String),
+    /// The ring gave a verdict and it was not `Success`.
     #[error("authentication failed: {0}")]
     Auth(String),
+    /// The ring gave no verdict at all (no nonce, or no reply to the challenge).
+    /// This is a link problem, not a key problem: a Ring 3 drops the link about
+    /// two seconds after a configuration write, so the caller should reconnect.
+    #[error("no auth reply from the ring: {0}")]
+    NoAuthReply(String),
     /// Pairing was attempted on a ring that already holds a key. Only a
     /// factory-reset ring accepts `SetAuthKey`.
     #[error("ring is not in factory-reset state (auth state {state:#04x}: {reason}); factory-reset it first")]

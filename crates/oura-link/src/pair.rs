@@ -186,7 +186,7 @@ fn classify(state: std::result::Result<AuthResult, Error>) -> Result<Ownership> 
         Ok(AuthResult::Unknown(b)) => Ok(Ownership::Unknown(b)),
         // The ring did not answer the nonce request: some reset rings skip the
         // challenge entirely. Report it rather than fail the probe.
-        Err(Error::Auth(_)) => Ok(Ownership::Unknown(0xff)),
+        Err(Error::NoAuthReply(_)) => Ok(Ownership::Unknown(0xff)),
         Err(e) => Err(e),
     }
 }

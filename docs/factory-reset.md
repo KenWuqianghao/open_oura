@@ -116,6 +116,18 @@ the CLI's default `Oura` filter. `pair` refuses a ring that still holds another
 key (`ring is not in factory-reset state`): reset it first. The iOS app runs the
 same `oura_link::pair` flow on the phone.
 
+## Ring 3 (Gen3, `BLB_*`) observations from the iOS pairing (2026-09-22)
+
+- After the dock reset the ring advertises `Oura <serial>`; after the key install it
+  advertises `Oura Ring Gen3`. Do not filter the scan by name.
+- The ring answers the nonce challenge and the protocol over a plain link. iOS showed
+  no Bluetooth pairing prompt, and none was needed.
+- The ring **drops the link about two seconds after a configuration write**
+  (`SetAuthKey` 0x24, `SetFeatureMode` 0x22). The write itself is acknowledged first.
+  A client must reconnect and continue with the same key; `oura_link::pair` then sees
+  `PairedWithThisKey` and skips the install. `OuraClient` reports the missing reply as
+  `Error::NoAuthReply`, which is a link problem, not a key rejection.
+
 Bond order is worth thinking about when more than one host is involved. A reset
 ring accepts new bonds from anything; once provisioned, a central that is neither
 bonded nor able to start encryption gets its link terminated after two or three
