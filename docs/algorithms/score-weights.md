@@ -156,3 +156,9 @@ The substrate (daily summaries, baselines, Recovery Index, persisted calibration
 documented in [`daily-summaries-and-baselines.md`](daily-summaries-and-baselines.md).
 Calibration is fit once by `tools/calibrate_scores.py` into `local/score_params.json`,
 so the scorers don't need the trends CSV at runtime.
+
+## On-device, without a calibration file
+
+`oura-analysis::scores` ships the three scores for the phone and the web dashboard:
+the recovered weights above with explicit, documented curves in place of the
+unreadable tables. See [`live-scores.md`](live-scores.md).
