@@ -1,0 +1,181 @@
+{
+  "version": 2,
+  "context": {
+    "summary": "Step 1 done and committed (4046286): oura-hub crate + oura push + docs. Step 2a in progress: the iOS app pushes the summary itself after each sync (HubPush.swift, AppHooks, RootView, settings section). Base JSON comes from oura-core summaryJson; on-device model results are overlaid because the Swift Summary struct drops fields. Step 2b (later): read Apple Watch samples from HealthKit and add them to the push.",
+    "next": "Write HubPush.swift + tests, patch Keychain/Core/AppHooks/OuraApp/ProfileSettings, add the file to project.yml and project-ci.yml, xcodegen + xcodebuild build + test on iPhone 17 Pro simulator, update docs, commit."
+  },
+  "title": "Health hub: 24/7 MCP endpoint for Grok Bot (step 1 ring hub, step 2 iOS push)",
+  "layers": [
+    {
+      "id": "contracts",
+      "name": "数据契约与存储",
+      "rank": 0
+    },
+    {
+      "id": "domain",
+      "name": "领域逻辑",
+      "rank": 1
+    },
+    {
+      "id": "service",
+      "name": "服务",
+      "rank": 2
+    },
+    {
+      "id": "clients",
+      "name": "客户端与部署",
+      "rank": 3
+    }
+  ],
+  "nodes": [
+    {
+      "id": "summary-json",
+      "label": "summary JSON (build_summary)",
+      "layer": "contracts",
+      "status": "done",
+      "evidence": "existing oura-summary::build_summary, served by oura dashboard GET /api/summary",
+      "detail": "The one JSON both clients render: nights, sleep_debt, illness, cardio, activity, activity_daily, vitals, device, generated_at, digest. Unchanged in this effort; the hub stores it as-is."
+    },
+    {
+      "id": "hub-store",
+      "label": "hub store (SQLite snapshots)",
+      "layer": "contracts",
+      "status": "done",
+      "evidence": "cargo test -p oura-hub store: 2 passed (put/dedup/latest, prune)",
+      "detail": "rusqlite table snapshots(received_at, generated_at, digest, body). Keeps latest + history so freshness is honest. Idempotent on digest.",
+      "kind": "db"
+    },
+    {
+      "id": "agent-status",
+      "label": "agent status doc (oura-summary::agent)",
+      "layer": "domain",
+      "status": "done",
+      "evidence": "cargo test -p oura-summary agent: 6 passed (open_health/crates/oura-summary/src/agent.rs)",
+      "detail": "Pure fn status_from_summary(&Value, now) -> Value: last night, sleep debt, HRV/RHR vs baseline, illness state, today activity, latest HR, plus freshness (generated_at, age_min). Also sleep_nights(days), trends(metric, days). Lives in oura-summary so iOS can reuse it in step 2. Unit tests on a fixture summary."
+    },
+    {
+      "id": "mcp-jsonrpc",
+      "label": "MCP JSON-RPC (stateless)",
+      "layer": "domain",
+      "status": "done",
+      "evidence": "cargo test -p oura-hub mcp: 4 passed (initialize, notifications, tools/list+call, error codes)",
+      "detail": "Hand-rolled Streamable HTTP MCP, protocol 2025-06-18: initialize, notifications/initialized, ping, tools/list, tools/call. Generic over a tool table; returns application/json (no SSE). No sessions. Errors as JSON-RPC errors. Unit tests with fixed requests."
+    },
+    {
+      "id": "hub-http",
+      "label": "oura-hub server (axum)",
+      "layer": "service",
+      "status": "done",
+      "evidence": "tests/http.rs 4 passed; release binary smoke: /health, /ingest/summary, /mcp/<token> initialize + get_status_now via curl OK",
+      "detail": "Binary oura-hub. Env OURA_HUB_TOKEN, OURA_HUB_BIND (0.0.0.0:8787), OURA_HUB_DB. Routes: GET /health, POST /ingest/summary (Bearer), POST /mcp and /mcp/<token>. Registers tools get_status_now, get_sleep, get_trends, get_activity over the latest snapshot. Token in path because Grok Bot config has url only. TLS is the reverse proxy's job.",
+      "kind": "service"
+    },
+    {
+      "id": "cli-push",
+      "label": "oura push (CLI)",
+      "layer": "clients",
+      "status": "in-progress",
+      "detail": "oura push --to URL --token T (or $OURA_HUB_TOKEN) --tz-offset H: build_summary with PythonRunner, POST via ureq, prints the hub reply. Committed in 4046286. Not yet run against a real oura.db + hub."
+    },
+    {
+      "id": "deploy",
+      "label": "Dockerfile + compose + docs",
+      "layer": "clients",
+      "status": "in-progress",
+      "detail": "Dockerfile (rust:1.93 build stage, debian slim runtime, /data volume, healthcheck), .dockerignore, docker-compose.yml (127.0.0.1:8787, OURA_HUB_TOKEN required), docs/health-hub.md, README row. `docker build` NOT verified: the Docker daemon was not running on this Mac."
+    },
+    {
+      "id": "grok-wiring",
+      "label": "Grok Bot wiring + curl check",
+      "layer": "clients",
+      "status": "in-progress",
+      "detail": "curl check passed locally (initialize, tools/list, tools/call get_status_now). Grok Bot mcpServers entry {url: https://host/mcp/<token>} waits on the user's server URL. Doc has the snippet and a planning prompt."
+    },
+    {
+      "id": "ios-hub-payload",
+      "label": "iOS HubPayload (overlay models on FFI JSON)",
+      "layer": "domain",
+      "status": "in-progress",
+      "detail": "Pure: take the raw summaryJson string from oura-core and fold the on-device model results in (night stages by start_ds, sleep_debt only when its valid_days covers at least as much, cardio, illness, workouts). The Swift Summary struct drops fields the agent doc needs (generated_at, tz, metrics), so the raw JSON is the base, never the re-encoded struct. Unit-tested."
+    },
+    {
+      "id": "ios-hub-pusher",
+      "label": "iOS HubPusher (URLSession, Keychain token)",
+      "layer": "service",
+      "status": "in-progress",
+      "detail": "HubSettings: url + enabled in UserDefaults, token in Keychain (AfterFirstUnlock so a locked-phone background sync can push). HubPusher.push builds the payload, skips an unchanged SHA-256, POSTs to <url>/ingest/summary with Bearer, timeout 8 s on bgRefresh else 20 s, publishes HubPushStatus for the UI.",
+      "kind": "service"
+    },
+    {
+      "id": "ios-hooks-push",
+      "label": "AppHooks + RootView wiring",
+      "layer": "clients",
+      "status": "in-progress",
+      "detail": "afterSync: push the base summary with the previous full summary's models overlaid; after bgProcessing models, push the full one. RootView.load: push after the foreground model run. Core.baseWithJson keeps the raw JSON so the summary is built once."
+    },
+    {
+      "id": "ios-hub-settings",
+      "label": "Settings: Health hub section",
+      "layer": "clients",
+      "status": "in-progress",
+      "detail": "ProfileSettingsView: toggle, URL field, token SecureField, Push Now, status line with last success / error.",
+      "kind": "ui"
+    }
+  ],
+  "edges": [
+    {
+      "from": "agent-status",
+      "to": "summary-json",
+      "label": "reads"
+    },
+    {
+      "from": "hub-http",
+      "to": "hub-store",
+      "label": "snapshots"
+    },
+    {
+      "from": "hub-http",
+      "to": "mcp-jsonrpc",
+      "label": "POST /mcp"
+    },
+    {
+      "from": "hub-http",
+      "to": "agent-status",
+      "label": "tool results"
+    },
+    {
+      "from": "cli-push",
+      "to": "summary-json",
+      "label": "POST body"
+    },
+    {
+      "from": "deploy",
+      "to": "hub-http"
+    },
+    {
+      "from": "grok-wiring",
+      "to": "hub-http",
+      "label": "MCP over HTTPS"
+    },
+    {
+      "from": "ios-hub-payload",
+      "to": "summary-json",
+      "label": "raw FFI JSON"
+    },
+    {
+      "from": "ios-hub-pusher",
+      "to": "ios-hub-payload",
+      "label": "body"
+    },
+    {
+      "from": "ios-hooks-push",
+      "to": "ios-hub-pusher",
+      "label": "push after sync"
+    },
+    {
+      "from": "ios-hub-settings",
+      "to": "ios-hub-pusher",
+      "label": "settings, Push Now"
+    }
+  ]
+}

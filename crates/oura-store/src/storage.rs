@@ -68,7 +68,7 @@ fn now_unix() -> i64 {
 
 /// A SQLite-backed store for ring data.
 pub struct Store {
-    conn: Connection,
+    pub(crate) conn: Connection,
 }
 
 impl Store {

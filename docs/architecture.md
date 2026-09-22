@@ -49,6 +49,8 @@ crate owns one job and depends only "downward".
 - A new **metric/algorithm** (score, sleep, baseline…) → a module in
   `oura-analysis`, with a doc under `docs/algorithms/` (see below).
 - A new **persisted table / query** → `oura-store::storage`.
+- **Replication** of raw rows between stores (phone or desktop → an always-on
+  replica) → `oura-store::replication` (`export_after`, `import_batch`).
 - A new **protocol/debug command** → `oura-cli`.
 - Product UI, dashboard APIs, DNA/blood, and iOS app work live in
   [`open_health`](https://github.com/Th0rgal/open_health).
