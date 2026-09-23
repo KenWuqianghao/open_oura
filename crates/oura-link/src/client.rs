@@ -497,9 +497,19 @@ impl<T: Transport> OuraClient<T> {
         let batch_terminal = |p: &Packet| {
             p.tag == 0x11 || (p.tag == 0x2f && matches!(p.payload.first(), Some(0x42) | Some(0x00)))
         };
+        // Legacy GetEvent is a two-step protocol. The first request asks for up to
+        // 255 events. Every later request is the "ack-fetch" (max_events = 0): it
+        // acknowledges the events through `start` AND makes the ring stream the next
+        // batch (about 9.5 KB on a Ring 3), ended by a 0x11 summary. Sending a fresh
+        // 255-request instead interrupts that stream and the ring answers with an
+        // empty summary that claims 0 bytes left, which ended a sync after ~800 events.
+        let mut legacy_primed = false;
         // Safety bound against a misbehaving ring that never reports drained.
         for _ in 0..100_000 {
-            let mut packets = self.request_tag(&protocol::req_data_flush(), 0x29).await?;
+            let mut packets = Vec::new();
+            if use_extended || !legacy_primed {
+                packets = self.request_tag(&protocol::req_data_flush(), 0x29).await?;
+            }
             if use_extended {
                 let ext = self
                     .request_batch(
@@ -512,6 +522,7 @@ impl<T: Transport> OuraClient<T> {
                     .any(|p| p.tag == 0x2f && p.payload.first().copied() == Some(0x00));
                 if unsupported {
                     use_extended = false;
+                    legacy_primed = true;
                     packets.extend(
                         self.request_batch(
                             &protocol::req_get_event(start, 255, -1),
@@ -522,9 +533,15 @@ impl<T: Transport> OuraClient<T> {
                 } else {
                     packets.extend(ext);
                 }
-            } else {
+            } else if !legacy_primed {
+                legacy_primed = true;
                 packets.extend(
                     self.request_batch(&protocol::req_get_event(start, 255, -1), batch_terminal)
+                        .await?,
+                );
+            } else {
+                packets.extend(
+                    self.request_batch(&protocol::req_get_event_ack(start), batch_terminal)
                         .await?,
                 );
             }
@@ -567,17 +584,15 @@ impl<T: Transport> OuraClient<T> {
                     "batch callback failed; not acknowledging batch".into(),
                 ));
             }
-            // ExtGetEvent is cursor-driven and implicitly completes its own batch.
-            // Sending the legacy GetEvent ACK here makes Ring 5 stream another batch;
-            // those late frames race with the next flush and get discarded. Only the
-            // legacy API uses the explicit 0x10 acknowledgement.
-            if progressed && !use_extended {
-                let _ = self
-                    .request_tag(&protocol::req_get_event_ack(start), 0x11)
-                    .await;
-            }
             if bytes_left == 0 {
-                break; // drained
+                // Drained. The legacy protocol still wants the last batch acknowledged;
+                // the ring answers this final ack with an empty summary.
+                if progressed && !use_extended {
+                    let _ = self
+                        .request_tag(&protocol::req_get_event_ack(start), 0x11)
+                        .await;
+                }
+                break;
             }
             if !progressed {
                 return Err(Error::Protocol(format!(
@@ -969,6 +984,33 @@ mod tests {
             .writes()
             .iter()
             .all(|request| request.first() != Some(&0x10)));
+    }
+
+    #[tokio::test]
+    async fn legacy_drain_fetches_the_next_batch_with_the_ack() {
+        let mock = MockTransport::new();
+        mock.on("280100", &["290100"]);
+        // The ring rejects ExtGetEvent: fall back to legacy GetEvent.
+        mock.on("2f0c410000000000000000000010", &["2f020041"]);
+        // First request: one event at ds=1, summary says 10 bytes left.
+        mock.on("100900000000ffffffffff", &["43050100000041", "1108010000000a000300"]);
+        // Ack-fetch through ds=2 (max_events = 0): the ring streams the next batch
+        // (one event at ds=5) and ends it with a summary of 0 bytes left.
+        mock.on("10090200000000ffffffff", &["43050500000041", "11080100000000000300"]);
+        // Final ack through ds=6: empty summary.
+        mock.on("10090600000000ffffffff", &["11080000000000000300"]);
+        let client = OuraClient::new(mock).with_quiet(Duration::from_millis(20));
+        let outcome = client.drain_events(0, |_| true, |_| true).await.unwrap();
+        assert_eq!(outcome.events_synced, 2);
+        assert_eq!(outcome.next_cursor, 6);
+        let writes = client.transport().writes();
+        let get_events: Vec<&Vec<u8>> = writes.iter().filter(|w| w.first() == Some(&0x10)).collect();
+        // One 255-request, then only ack-fetches (max_events = 0).
+        assert_eq!(get_events.len(), 3);
+        assert_eq!(get_events[0][6], 255);
+        assert!(get_events[1..].iter().all(|w| w[6] == 0));
+        // No second flush once the legacy stream is primed.
+        assert_eq!(writes.iter().filter(|w| w.as_slice() == [0x28, 0x01, 0x00]).count(), 1);
     }
 
     #[tokio::test]
