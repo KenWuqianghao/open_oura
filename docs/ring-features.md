@@ -128,6 +128,12 @@ Key files: `…/data/device/ring/b0.smali` (`r()` enable sequence), `f2.java`
 
 ## Commands
 
+- `oura pair --features core|full|none` — after the key is installed, `core`
+  (default) sets DAYTIME_HR + SPO2 to AUTOMATIC in the official app's enable
+  order; `full` also sets REAL_STEPS, then EXERCISE_HR (best effort, server-flag
+  gated on stock rings), and RESTING_HR only when it reads OFF. Rejections are
+  reported per feature, never fail the pairing. Generation ≤ 2 rings are skipped
+  (no `SetFeatureMode`).
 - `oura feature-status` — read the real on-ring mode of the data features.
 - `oura feature-mode <feature> --mode <off|automatic|requested|connected_live>` —
   set a feature's mode (consumer-feature enable path; needs `--key-file`).

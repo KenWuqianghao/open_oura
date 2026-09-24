@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Open Oura</title>
+<meta name="description" content="Use your Oura ring with no account and no cloud. An open-source iPhone app syncs the ring over Bluetooth, computes your scores on the phone, and can back up every night to a server you own.">
+<meta property="og:title" content="Open Oura: your Oura ring, no account, no cloud">
+<meta property="og:description" content="Open-source iPhone app for Oura Ring 3, 4, and 5. Bluetooth sync, on-phone scores, an optional self-hosted hub, and MCP for your AI agent.">
+<meta property="og:image" content="https://open-oura.vercel.app/assets/og.jpg">
+<meta property="og:url" content="https://open-oura.vercel.app">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://open-oura.vercel.app/assets/og.jpg">
+<meta name="theme-color" content="#0a0c10">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 60'%3E%3Ccircle cx='30' cy='30' r='24' fill='none' stroke='%2364d2ff' stroke-width='8' stroke-linecap='round' stroke-dasharray='120 151' transform='rotate(-90 30 30)'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+:root {
+  --bg: #0a0c10; --bg-2: #0d1016; --panel: #12161d; --panel-2: #171c25;
+  --line: rgba(236, 240, 245, 0.08); --line-2: rgba(236, 240, 245, 0.14);
+  --text: #edf0f4; --muted: #939cab; --faint: #6b7483;
+  --accent: #64d2ff;
+  --deep: #5e5ce6; --core: #2f8cff; --rem: #64d2ff; --awake: #ff9f0a;
+  --readiness: #3fc6d6; --sleep: #7d7aff; --activity: #ff9f0a;
+  --sans: "Geist", "SF Pro Text", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 400 17px/1.6 var(--sans); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+img { max-width: 100%; display: block; }
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 8px; }
+.shell { max-width: 1240px; margin: 0 auto; padding-inline: 28px; }
+@media (max-width: 640px) { .shell { padding-inline: 18px; } }
+.mono { font-family: var(--mono); }
+.eyebrow { font: 500 12px/1 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint); }
+h1, h2, h3 { margin: 0; font-weight: 600; letter-spacing: -0.035em; text-wrap: balance; }
+h2 { font-size: clamp(34px, 4.6vw, 56px); line-height: 1.02; }
+h3 { font-size: 22px; letter-spacing: -0.02em; line-height: 1.2; }
+p { margin: 0; }
+.lead { font-size: 19px; line-height: 1.55; color: var(--muted); max-width: 48ch; }
+
+/* ---------- nav ---------- */
+.nav { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%); background: color-mix(in srgb, var(--bg) 72%, transparent); border-bottom: 1px solid transparent; transition: border-color .3s var(--ease); }
+.nav.scrolled { border-bottom-color: var(--line); }
+.nav .shell { display: flex; align-items: center; gap: 28px; height: 64px; }
+.logo { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 17px; letter-spacing: -0.02em; text-decoration: none; }
+.logo svg { width: 26px; height: 26px; }
+.nav .links { display: flex; gap: 24px; margin-left: auto; font-size: 14px; }
+.nav .links a { color: var(--muted); text-decoration: none; transition: color .2s; }
+.nav .links a:hover { color: var(--text); }
+@media (max-width: 760px) { .nav .links { display: none; } .nav .shell > .btn { margin-left: auto; } }
+
+.btn { display: inline-flex; align-items: center; gap: 9px; height: 44px; padding: 0 20px; border-radius: 999px; font: 500 15px/1 var(--sans); text-decoration: none; border: 1px solid var(--line-2); color: var(--text); background: transparent; cursor: pointer; transition: transform .2s var(--ease), background .2s, border-color .2s; white-space: nowrap; }
+.btn:hover { border-color: rgba(236,240,245,.3); }
+.btn:active { transform: scale(0.98); }
+.btn.solid { background: var(--text); color: #0b0e13; border-color: var(--text); }
+.btn.solid:hover { background: #ffffff; }
+.btn.small { height: 36px; padding: 0 16px; font-size: 14px; }
+.btn svg { width: 16px; height: 16px; }
+
+/* ---------- hero ---------- */
+.hero { position: relative; padding-top: clamp(40px, 7vw, 96px); overflow: hidden; }
+.hero-grid { display: grid; grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr); gap: 32px; align-items: center; position: relative; z-index: 2; }
+.pill-tag { display: inline-flex; align-items: center; gap: 10px; padding: 7px 14px 7px 8px; border: 1px solid var(--line-2); border-radius: 999px; font-size: 13px; color: var(--muted); background: rgba(18, 22, 29, 0.6); }
+.pill-tag b { font: 500 11px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: #0b0e13; background: var(--accent); padding: 5px 8px; border-radius: 999px; }
+.hero h1 { font-size: clamp(46px, 6.6vw, 88px); line-height: 0.96; letter-spacing: -0.045em; margin-top: 26px; }
+.hero h1 .dim { color: #5d6675; }
+.hero .lead { margin-top: 26px; }
+.hero .ctas { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 34px; }
+.hero .fine { margin-top: 22px; font-size: 13px; color: var(--faint); display: flex; gap: 18px; flex-wrap: wrap; }
+.hero .fine span { display: inline-flex; align-items: center; gap: 7px; }
+.hero .fine i { width: 5px; height: 5px; border-radius: 50%; background: var(--faint); display: block; }
+
+.devices { position: relative; height: 640px; }
+.phone { position: absolute; width: 290px; aspect-ratio: 1206 / 2622; border-radius: 48px; padding: 9px; background: linear-gradient(145deg, #2a2f38, #0f1217 45%, #1c2028); box-shadow: 0 0 0 1px rgba(255,255,255,.07), inset 0 1px 0 rgba(255,255,255,.12), 0 60px 120px -30px rgba(0, 0, 0, 0.9), 0 30px 60px -30px rgba(40, 90, 140, 0.35); }
+.phone img { width: 100%; height: 100%; object-fit: cover; border-radius: 40px; }
+.phone.front { right: 8%; top: 0; transform: rotate(3deg); z-index: 2; }
+.phone.back { right: 44%; top: 70px; transform: rotate(-6deg) scale(0.9); opacity: .85; }
+.chip { position: absolute; z-index: 3; left: 0; bottom: 78px; padding: 16px 18px; border-radius: 20px; background: rgba(20, 25, 33, 0.72); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); border: 1px solid rgba(255,255,255,.1); box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 24px 60px -20px rgba(0,0,0,.8); min-width: 250px; }
+.chip .k { font: 500 11px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--faint); }
+.chip .row { display: flex; gap: 22px; margin-top: 12px; }
+.chip .v { font-size: 26px; font-weight: 600; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.chip .v small { font-size: 13px; color: var(--muted); font-weight: 500; margin-left: 2px; letter-spacing: 0; }
+.chip .l { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.chip .live { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #30d158; margin-right: 8px; box-shadow: 0 0 0 0 rgba(48,209,88,.6); animation: breathe 2.8s ease-in-out infinite; vertical-align: 1px; }
+@keyframes breathe { 0%, 100% { box-shadow: 0 0 0 0 rgba(48,209,88,.45); } 50% { box-shadow: 0 0 0 6px rgba(48,209,88,0); } }
+
+.hypno { position: relative; z-index: 1; margin-top: 8px; padding-bottom: 12px; }
+.hypno svg { width: 100%; height: 200px; display: block; }
+.hypno .axis { display: flex; justify-content: space-between; font: 400 11px/1 var(--mono); color: var(--faint); margin-top: 10px; }
+.hypno .caption { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-top: 18px; font-size: 13px; color: var(--faint); }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; }
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.legend i { width: 9px; height: 9px; border-radius: 3px; display: block; }
+
+@media (max-width: 980px) {
+  .hero-grid { grid-template-columns: 1fr; }
+  .devices { height: 560px; max-width: 520px; width: 100%; margin: 10px auto 0; }
+}
+@media (max-width: 560px) {
+  .devices { height: 470px; }
+  .phone { width: 220px; border-radius: 38px; padding: 7px; }
+  .phone img { border-radius: 32px; }
+  .phone.front { right: 2%; }
+  .phone.back { right: 40%; top: 50px; }
+  .chip { bottom: 40px; min-width: 0; }
+  .chip .v { font-size: 21px; }
+  .hypno svg { height: 170px; }
+}
+
+/* ---------- proof ---------- */
+.proof { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin-top: 40px; }
+.proof .shell { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.proof .cell { padding: 30px 28px 30px 0; }
+.proof .cell + .cell { padding-left: 28px; border-left: 1px solid var(--line); }
+.proof .n { font-size: 34px; font-weight: 600; letter-spacing: -0.035em; font-variant-numeric: tabular-nums; }
+.proof .t { font-size: 14px; color: var(--muted); margin-top: 6px; line-height: 1.45; }
+@media (max-width: 860px) { .proof .shell { grid-template-columns: 1fr 1fr; } .proof .cell:nth-child(3) { padding-left: 0; border-left: 0; } .proof .cell:nth-child(n+3) { border-top: 1px solid var(--line); } }
+
+section { padding-block: clamp(80px, 11vw, 140px); }
+.head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; align-items: end; margin-bottom: 56px; }
+.head .lead { justify-self: end; }
+@media (max-width: 860px) { .head { grid-template-columns: 1fr; } .head .lead { justify-self: start; } }
+
+/* ---------- demo ---------- */
+.film { position: relative; border-radius: 28px; overflow: hidden; background: #05070a; border: 1px solid var(--line); box-shadow: 0 60px 140px -60px rgba(47, 140, 255, 0.35); aspect-ratio: 16 / 9; }
+.film video { width: 100%; height: 100%; display: block; }
+.film-cap { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-top: 16px; font-size: 13px; color: var(--faint); }
+
+/* ---------- features ---------- */
+.feature { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: clamp(32px, 6vw, 96px); align-items: center; padding-block: 56px; }
+.feature + .feature { border-top: 1px solid var(--line); }
+.feature.flip { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
+.feature.flip .feature-copy { order: 2; }
+.feature h3 { font-size: clamp(28px, 3.2vw, 40px); letter-spacing: -0.035em; line-height: 1.05; margin-top: 14px; }
+.feature p { color: var(--muted); margin-top: 18px; max-width: 46ch; }
+.facts { list-style: none; padding: 0; margin: 26px 0 0; display: flex; flex-direction: column; gap: 0; border-top: 1px solid var(--line); max-width: 460px; }
+.facts li { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.facts li span:first-child { color: var(--muted); }
+.facts li span:last-child { font-family: var(--mono); font-size: 13px; text-align: right; }
+.media { position: relative; min-height: 420px; display: grid; place-items: center; border-radius: 32px; background: radial-gradient(120% 90% at 50% 100%, #151b26 0%, var(--bg-2) 60%); border: 1px solid var(--line); overflow: hidden; padding: 48px 24px; }
+.media .phone { position: relative; width: 250px; right: auto; top: auto; transform: none; opacity: 1; }
+.media .pair { display: flex; gap: 22px; align-items: flex-end; }
+.media .pair .phone:first-child { transform: translateY(26px) rotate(-3deg); }
+.media .pair .phone:last-child { transform: rotate(3deg); }
+.window { width: 100%; border-radius: 16px; overflow: hidden; border: 1px solid var(--line-2); box-shadow: 0 50px 100px -40px rgba(0,0,0,.9); background: var(--panel); }
+.window .bar { height: 38px; display: flex; align-items: center; gap: 8px; padding: 0 14px; border-bottom: 1px solid var(--line); }
+.window .bar i { width: 10px; height: 10px; border-radius: 50%; background: #2a303a; display: block; }
+.window .bar span { margin-left: 10px; font: 400 12px/1 var(--mono); color: var(--faint); }
+.window img { width: 100%; }
+.media.wide { padding: 40px 0 0 40px; place-items: start; }
+.media.wide .window { border-bottom-right-radius: 0; border-right: 0; border-bottom: 0; width: 118%; }
+.term { width: 100%; max-width: 620px; border-radius: 16px; background: #080a0e; border: 1px solid var(--line-2); overflow: hidden; box-shadow: 0 50px 100px -40px rgba(0,0,0,.9); }
+.term pre { margin: 0; padding: 20px 22px; font: 400 13px/1.7 var(--mono); color: #cfd6df; white-space: pre; overflow-x: auto; }
+.term .p { color: #30d158; } .term .k { color: #7fd7ff; } .term .v { color: #ffd479; } .term .c { color: var(--faint); }
+.term .tool { display: inline-flex; align-items: center; gap: 8px; margin: 0 22px; padding: 6px 12px; border-radius: 999px; background: rgba(100, 210, 255, 0.1); color: var(--accent); font: 500 12px/1 var(--mono); }
+.tools { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+.tools span { font: 400 12px/1 var(--mono); padding: 8px 11px; border-radius: 999px; border: 1px solid var(--line-2); color: var(--muted); }
+@media (max-width: 900px) {
+  .feature, .feature.flip { grid-template-columns: 1fr; }
+  .feature.flip .feature-copy { order: 0; }
+  .media { min-height: 0; padding: 36px 16px; }
+  .media .phone { width: 200px; }
+  .media .pair .phone { width: 160px; }
+  .media.wide { padding: 24px 0 0 24px; }
+}
+
+/* ---------- flow ---------- */
+.flow { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; }
+.flow svg.line { position: absolute; left: 0; right: 0; top: 23px; width: 100%; height: 4px; overflow: visible; }
+.stop { position: relative; padding-right: 24px; }
+.stop .dot { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: var(--bg); border: 1px solid var(--line-2); position: relative; z-index: 1; }
+.stop .dot i { width: 14px; height: 14px; border-radius: 50%; display: block; }
+.stop h3 { margin-top: 22px; font-size: 21px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.stop .opt { font: 500 10px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--faint); border: 1px solid var(--line-2); border-radius: 999px; padding: 5px 8px; }
+.stop p { color: var(--muted); margin-top: 10px; font-size: 15px; max-width: 30ch; }
+.stop .via { margin-top: 14px; font: 400 12px/1.5 var(--mono); color: var(--faint); }
+@media (max-width: 900px) {
+  .flow { grid-template-columns: 1fr; gap: 34px; }
+  .flow svg.line { display: none; }
+  .stop { padding-left: 70px; padding-right: 0; }
+  .stop .dot { position: absolute; left: 0; top: 0; }
+  .stop h3 { margin-top: 10px; }
+}
+
+/* ---------- setup ---------- */
+.setup { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 7fr); gap: clamp(32px, 6vw, 96px); align-items: start; }
+.steps { list-style: none; margin: 0; padding: 0; counter-reset: s; border-top: 1px solid var(--line); }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 8px; padding: 28px 0; border-bottom: 1px solid var(--line); }
+.steps li::before { content: "0" counter(s); font: 500 13px/1.9 var(--mono); color: var(--faint); }
+.steps h3 { font-size: 20px; }
+.steps p { color: var(--muted); margin-top: 8px; font-size: 15px; }
+.cmd { display: flex; align-items: center; gap: 12px; margin-top: 14px; background: #080a0e; border: 1px solid var(--line); border-radius: 12px; padding: 10px 10px 10px 16px; font: 400 13px/1.5 var(--mono); color: #cfd6df; }
+.cmd code { flex: 1; overflow-x: auto; white-space: nowrap; }
+.cmd code::before { content: "$ "; color: #30d158; }
+.copy { flex: none; border: 1px solid var(--line-2); background: var(--panel); color: var(--muted); border-radius: 8px; font: 500 12px/1 var(--mono); padding: 8px 10px; cursor: pointer; }
+.copy:hover { color: var(--text); }
+.leds { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.leds span { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px 6px 8px; }
+.leds i { width: 10px; height: 10px; border-radius: 50%; display: block; box-shadow: 0 0 10px currentColor; }
+@media (max-width: 900px) { .setup { grid-template-columns: 1fr; } }
+
+/* ---------- faq ---------- */
+.faq { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 7fr); gap: clamp(32px, 6vw, 96px); }
+.faq details { border-bottom: 1px solid var(--line); }
+.faq details:first-child { border-top: 1px solid var(--line); }
+.faq summary { list-style: none; cursor: pointer; padding: 22px 40px 22px 0; font-size: 18px; font-weight: 500; letter-spacing: -0.01em; position: relative; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: ""; position: absolute; right: 6px; top: 50%; width: 11px; height: 11px; border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted); transform: translateY(-70%) rotate(45deg); transition: transform .3s var(--ease); }
+.faq details[open] summary::after { transform: translateY(-30%) rotate(-135deg); }
+.faq details p { color: var(--muted); padding: 0 40px 24px 0; max-width: 62ch; }
+@media (max-width: 900px) { .faq { grid-template-columns: 1fr; } }
+
+/* ---------- credit + cta ---------- */
+.credit { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 32px; align-items: center; padding: 36px; border-radius: 28px; border: 1px solid var(--line); background: linear-gradient(120deg, var(--panel) 0%, var(--bg-2) 100%); }
+.credit p { color: var(--muted); margin-top: 12px; max-width: 64ch; }
+.credit .stars { text-align: right; }
+.credit .stars .n { font-size: 44px; font-weight: 600; letter-spacing: -0.04em; }
+.credit .stars .t { font-size: 13px; color: var(--faint); }
+@media (max-width: 760px) { .credit { grid-template-columns: 1fr; padding: 26px; } .credit .stars { text-align: left; } }
+.final { text-align: left; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 32px; align-items: end; }
+.final h2 { font-size: clamp(40px, 6vw, 76px); letter-spacing: -0.045em; line-height: 0.98; }
+@media (max-width: 760px) { .final { grid-template-columns: 1fr; } }
+footer { border-top: 1px solid var(--line); padding-block: 32px 48px; font-size: 13px; color: var(--faint); }
+footer .shell { display: flex; justify-content: space-between; gap: 16px 32px; flex-wrap: wrap; }
+footer nav { display: flex; gap: 22px; flex-wrap: wrap; }
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--text); }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .chip .live { animation: none; }
+}
+</style>
+</head>
+<body>
+
+<header class="nav" id="nav">
+  <div class="shell">
+    <a class="logo" href="#top" aria-label="Open Oura home">
+      <svg viewBox="0 0 60 60" aria-hidden="true">
+        <circle cx="30" cy="30" r="25" fill="none" stroke="#3fc6d6" stroke-width="6" stroke-linecap="round" stroke-dasharray="128 157" transform="rotate(-90 30 30)"/>
+        <circle cx="30" cy="30" r="16.5" fill="none" stroke="#7d7aff" stroke-width="6" stroke-linecap="round" stroke-dasharray="77 104" transform="rotate(-90 30 30)"/>
+        <circle cx="30" cy="30" r="8" fill="none" stroke="#ff9f0a" stroke-width="6" stroke-linecap="round" stroke-dasharray="29 50" transform="rotate(-90 30 30)"/>
+      </svg>
+      Open Oura
+    </a>
+    <nav class="links" aria-label="Sections">
+      <a href="#demo">Demo</a>
+      <a href="#how">How it works</a>
+      <a href="#privacy">Privacy</a>
+      <a href="#faq">FAQ</a>
+      <a href="https://github.com/KenWuqianghao/open_health">GitHub</a>
+    </nav>
+    <a class="btn solid small" href="/setup">Set it up</a>
+  </div>
+</header>
+
+<main id="top">
+<div class="hero">
+  <div class="shell">
+    <div class="hero-grid">
+      <div class="hero-copy">
+        <span class="pill-tag"><b>Open source</b>For Oura Ring 3, 4, and 5 on iPhone</span>
+        <h1>Your Oura ring.<br><span class="dim">No account.</span><br><span class="dim">No cloud.</span></h1>
+        <p class="lead">Open Oura syncs the ring over Bluetooth, computes readiness, sleep, and activity on your iPhone, and can back up every night to a server you own. Your AI agent reads it from there.</p>
+        <div class="ctas">
+          <a class="btn solid" href="/setup">Set it up in about 30 min
+            <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a class="btn" href="#demo">
+            <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M5 3.5v9l7.5-4.5z" fill="currentColor"/></svg>Watch the 32 s demo</a>
+        </div>
+        <div class="fine"><span><i></i>MIT license</span><span><i></i>No Oura account</span><span><i></i>Free Apple ID is enough</span></div>
+      </div>
+      <div class="devices" aria-hidden="true">
+        <div class="phone back"><img src="assets/phone-trends.jpg" alt="" fetchpriority="high"></div>
+        <div class="phone front"><img src="assets/phone-summary.jpg" alt="" fetchpriority="high"></div>
+        <div class="chip">
+          <div class="k"><span class="live"></span>Synced from the ring · Sep 23</div>
+          <div class="row">
+            <div><div class="v">8<small>h</small> 53<small>m</small></div><div class="l">asleep</div></div>
+            <div><div class="v">92<small>%</small></div><div class="l">efficiency</div></div>
+            <div><div class="v">74<small>ms</small></div><div class="l">HRV</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="hypno shell">
+    <svg id="hypno" viewBox="0 0 1200 240" preserveAspectRatio="none" role="img" aria-label="Hypnogram of one real night: 9.5 hours in bed, 33 percent deep sleep, 11 percent REM"></svg>
+    <div class="axis"><span>03:53</span><span>06:00</span><span>08:00</span><span>10:00</span><span>12:00</span><span>13:21</span></div>
+    <div class="caption">
+      <span>One real night from the ring, staged on the phone. No server involved.</span>
+      <span class="legend"><span><i style="background:var(--awake)"></i>Awake</span><span><i style="background:var(--rem)"></i>REM</span><span><i style="background:var(--core)"></i>Core</span><span><i style="background:var(--deep)"></i>Deep</span></span>
+    </div>
+  </div>
+</div>
+
+<div class="proof" aria-label="Facts">
+  <div class="shell">
+    <div class="cell"><div class="n">0</div><div class="t">calls to Oura's cloud. The ring talks to your phone only.</div></div>
+    <div class="cell"><div class="n">116,890</div><div class="t">raw ring events copied to the hub in one sync, in our test.</div></div>
+    <div class="cell"><div class="n">1 scan</div><div class="t">connects the iPhone to your hub. No token to type.</div></div>
+    <div class="cell"><div class="n">561★</div><div class="t">on GitHub for open_oura, the protocol work under it.</div></div>
+  </div>
+</div>
+
+<section id="demo">
+  <div class="shell">
+    <div class="head">
+      <div><span class="eyebrow">Demo</span><h2 style="margin-top:14px">Ring to phone to server to agent. In 32 seconds.</h2></div>
+      <p class="lead">Every screen is the real app and the real hub. The server name and the token are demo values.</p>
+    </div>
+    <div class="film">
+      <video src="video/open-oura-demo/renders/open-oura-demo.mp4" poster="video/open-oura-demo/poster.jpg" controls playsinline preload="none" aria-label="Demo: pair the ring, see scores on the iPhone, install the hub, connect by QR code, read the data from an AI agent"></video>
+    </div>
+    <div class="film-cap"><span>1080p · music, no voice</span><span>Recorded from the iOS simulator and a local hub</span></div>
+  </div>
+</section>
+
+<section id="how" style="padding-top:0">
+  <div class="shell">
+    <div class="feature">
+      <div class="feature-copy">
+        <span class="eyebrow">01 · Pair</span>
+        <h3>A key you make. A ring you own.</h3>
+        <p>Reset the ring on its charger, then pair it in the app. The app makes the key on your iPhone and keeps it in the Keychain. Oura's app and Oura's servers are out of the loop.</p>
+        <ul class="facts">
+          <li><span>Key</span><span>16 bytes, made on the phone</span></li>
+          <li><span>Link</span><span>Bluetooth LE, re-authenticated</span></li>
+          <li><span>Rings</span><span>Gen 3 · Ring 4 · Ring 5</span></li>
+        </ul>
+      </div>
+      <div class="media"><div class="phone"><img src="assets/phone-pair.jpg" alt="Open Oura pairing screen: Pair your ring" loading="lazy"></div></div>
+    </div>
+
+    <div class="feature flip">
+      <div class="feature-copy">
+        <span class="eyebrow">02 · Understand</span>
+        <h3>Readiness, sleep, and activity, computed on the phone.</h3>
+        <p>The app pulls the ring's history into a local database and runs the metric algorithms on the iPhone. It can write the measured data to Apple Health, day by day, with no duplicates.</p>
+        <ul class="facts">
+          <li><span>Scores</span><span>readiness · sleep · activity</span></li>
+          <li><span>Vitals</span><span>HR · HRV · temp · SpO₂</span></li>
+          <li><span>Apple Health</span><span>optional, measured data only</span></li>
+        </ul>
+      </div>
+      <div class="media"><div class="pair">
+        <div class="phone"><img src="assets/phone-trends.jpg" alt="Trends: past 7 days of readiness, sleep, and activity" loading="lazy"></div>
+        <div class="phone"><img src="assets/phone-summary.jpg" alt="Summary: readiness 96, sleep 89, activity 69" loading="lazy"></div>
+      </div></div>
+    </div>
+
+    <div class="feature" id="hub">
+      <div class="feature-copy">
+        <span class="eyebrow">03 · Keep · optional</span>
+        <h3>Every night, on a server you own.</h3>
+        <p>Run the hub on a home server, a Steam Deck, or a Mac with one command. After each sync the phone sends the new ring data. You get a full backup, a web app, and your data while the phone is off.</p>
+        <ul class="facts">
+          <li><span>Install</span><span>./deploy/install.sh</span></li>
+          <li><span>Runs on</span><span>Docker or podman</span></li>
+          <li><span>Network</span><span>your tailnet, or HTTPS</span></li>
+        </ul>
+      </div>
+      <div class="media wide"><div class="window">
+        <div class="bar"><i></i><i></i><i></i><span>your-server.ts.net:8787/#/sleep</span></div>
+        <img src="assets/hub-sleep.jpg" alt="The hub web app: one night with its hypnogram, heart rate, HRV, skin temperature, blood oxygen, and movement" loading="lazy">
+      </div></div>
+    </div>
+
+    <div class="feature flip">
+      <div class="feature-copy">
+        <span class="eyebrow">04 · Ask · optional</span>
+        <h3>Your AI agent reads it over MCP.</h3>
+        <p>The hub is an MCP server. Add one line to Claude Code, Cursor, or any MCP client, and ask it to plan your day around last night. Every answer carries how old the data is.</p>
+        <div class="tools"><span>get_status_now</span><span>get_sleep</span><span>get_trends</span><span>get_activity</span><span>get_watch</span><span>get_health_samples</span></div>
+      </div>
+      <div class="media">
+        <div class="term" role="img" aria-label="Terminal: claude mcp add, then the get_status_now result">
+<pre><span class="p">$</span> claude mcp add --transport http health https://…/mcp/<span class="c">••••</span></pre>
+<span class="tool">get_status_now ✓</span>
+<pre>{
+  <span class="k">"last_night"</span>: {
+    <span class="k">"in_bed_h"</span>: <span class="v">9.5</span>, <span class="k">"efficiency_pct"</span>: <span class="v">92.3</span>,
+    <span class="k">"deep_pct"</span>: <span class="v">32.6</span>, <span class="k">"hrv_ms"</span>: <span class="v">74</span>, <span class="k">"rhr"</span>: <span class="v">53</span>
+  },
+  <span class="k">"vitals"</span>: { <span class="k">"hrv_ms"</span>: { <span class="k">"latest"</span>: <span class="v">36</span>, <span class="k">"baseline"</span>: <span class="v">74</span> } },
+  <span class="k">"freshness"</span>: { <span class="k">"ring_last_sync_age_h"</span>: <span class="v">0.7</span> }
+}</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="privacy" style="padding-top:40px">
+  <div class="shell">
+    <div class="head">
+      <div><span class="eyebrow">Where your data goes</span><h2 style="margin-top:14px">You decide every hop.</h2></div>
+      <p class="lead">The phone is the only required stop. The hub and the agent are yours to add, and yours to remove.</p>
+    </div>
+    <div class="flow">
+      <svg class="line" viewBox="0 0 1000 4" preserveAspectRatio="none" aria-hidden="true"><line id="flowline" x1="24" y1="2" x2="976" y2="2" stroke="rgba(236,240,245,.22)" stroke-width="1.5" stroke-dasharray="4 6" vector-effect="non-scaling-stroke"/></svg>
+      <div class="stop"><div class="dot"><i style="background:var(--readiness)"></i></div><h3>Ring</h3><p>Records heart rate, HRV, temperature, blood oxygen, and movement.</p><div class="via">→ Bluetooth, your key</div></div>
+      <div class="stop"><div class="dot"><i style="background:var(--core)"></i></div><h3>iPhone</h3><p>Stores the history, computes the scores, and can write to Apple Health.</p><div class="via">→ after each sync, your token</div></div>
+      <div class="stop"><div class="dot"><i style="background:#30d158"></i></div><h3>Your hub <span class="opt">optional</span></h3><p>Keeps a full copy, serves the web app, and runs the MCP server.</p><div class="via">→ MCP over HTTP, same token</div></div>
+      <div class="stop"><div class="dot"><i style="background:var(--sleep)"></i></div><h3>Your agent <span class="opt">optional</span></h3><p>Reads your status and plans with it. Only agents with your token get in.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="setup">
+  <div class="shell setup">
+    <div>
+      <span class="eyebrow">Setup</span>
+      <h2 style="margin-top:14px">Three steps. About 30 minutes.</h2>
+      <p class="lead" style="margin-top:20px">You need a Mac with Xcode, an iPhone and its cable, and the ring's charger. A free Apple ID works.</p>
+      <div style="margin-top:28px"><a class="btn solid" href="/setup">Read the full guide</a></div>
+    </div>
+    <ol class="steps">
+      <li><div>
+        <h3>Install the app from your Mac</h3>
+        <p>One script builds the app, finds your Apple team and your iPhone, and installs it.</p>
+        <div class="cmd"><code>git clone https://github.com/KenWuqianghao/open_health.git && cd open_health && ./apps/ios/install.sh</code><button class="copy" type="button">Copy</button></div>
+      </div></li>
+      <li><div>
+        <h3>Reset the ring on its charger, then pair</h3>
+        <p>Flip the charger with the ring on it until each light shows. Then tap Scan for Rings in the app.</p>
+        <div class="leds"><span><i style="color:#2f7bff;background:#2f7bff"></i>blue</span><span><i style="color:#ff453a;background:#ff453a"></i>red</span><span><i style="color:#bf5af2;background:#bf5af2"></i>purple</span><span><i style="color:#ffd60a;background:#ffd60a"></i>yellow</span></div>
+      </div></li>
+      <li><div>
+        <h3>Optional: run your hub, scan to connect</h3>
+        <p>On your server, one script. Then scan the QR code on the hub's Connect page with the iPhone Camera.</p>
+        <div class="cmd"><code>git clone https://github.com/KenWuqianghao/oura-hub.git && cd oura-hub && ./deploy/install.sh</code><button class="copy" type="button">Copy</button></div>
+      </div></li>
+    </ol>
+  </div>
+</section>
+
+<section id="faq" style="padding-top:0">
+  <div class="shell faq">
+    <div><span class="eyebrow">Questions</span><h2 style="margin-top:14px">Before you reset your ring.</h2></div>
+    <div>
+      <details><summary>Can I still use the official Oura app?</summary><p>Not at the same time. A ring holds one key, so the reset removes Oura's key. To go back, reset the ring again and set it up in the official app. Sync the official app one last time before you switch.</p></details>
+      <details><summary>Is anything sent to Oura or to you?</summary><p>No. The app talks to the ring over Bluetooth and keeps the data on the iPhone. It sends data to one place only: the hub you run, and only after you connect it.</p></details>
+      <details><summary>Which rings and phones work?</summary><p>Oura Ring 3 (Gen3), Ring 4, and Ring 5, which use the same protocol. The pairing and sync were tested on a Ring 3 Horizon and a Ring 5. The app is iPhone only for now, iOS 17 or newer.</p></details>
+      <details><summary>Why do I build it myself?</summary><p>It is not on the App Store. The install script builds it with Xcode and your Apple ID. With a free Apple ID the app runs for 7 days per install; run the script again to renew it. Your data stays on the phone.</p></details>
+      <details><summary>Do I need a server?</summary><p>No. The app works alone. The hub adds a backup, a web app, remote access, and MCP for an AI agent. It runs on any computer that stays on.</p></details>
+      <details><summary>Are sleep stages included?</summary><p>Sleep stages, cardiovascular age, and workout detection use Oura's own on-device models. Those files are Oura's property and are not in these repositories. Without them you still get heart rate, HRV, blood oxygen, temperature, steps, energy, time in bed, and the scores. The guide shows how to add the models from your own copy of the official app.</p></details>
+      <details><summary>Is this made by Oura?</summary><p>No. Open Oura is an independent open-source project. It is not made, supported, or approved by Oura.</p></details>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="shell">
+    <div class="credit">
+      <div>
+        <span class="eyebrow">Built on open work</span>
+        <h3 style="margin-top:12px;font-size:26px">The protocol work is by Thomas Marchand.</h3>
+        <p><a href="https://github.com/Th0rgal/open_oura">open_oura</a> by Thomas Marchand (<a href="https://x.com/Th0rgal_">@Th0rgal_</a>) reverse-engineered the ring's Bluetooth protocol, authentication, and event format, and ported the metric algorithms. Open Oura adds the iPhone app polish, the self-hosted hub, and the one-command setup on top.</p>
+      </div>
+      <div class="stars"><div class="n">561★</div><div class="t">Th0rgal/open_oura</div></div>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="shell final">
+    <h2>Your data should live<br>where you do.</h2>
+    <div class="ctas" style="display:flex;gap:12px;flex-wrap:wrap"><a class="btn solid" href="/setup">Set it up</a><a class="btn" href="https://github.com/KenWuqianghao/open_health">View on GitHub</a></div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="shell">
+    <span>Open Oura is independent and is not affiliated with Oura Health Oy. Oura is a trademark of Oura Health Oy. MIT license.</span>
+    <nav aria-label="Repositories"><a href="https://github.com/KenWuqianghao/open_health">open_health</a><a href="https://github.com/KenWuqianghao/oura-hub">oura-hub</a><a href="https://github.com/Th0rgal/open_oura">open_oura</a><a href="/setup">Setup guide</a></nav>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/ScrollTrigger.min.js"></script>
+<script>
+/* One real night (2026-09-23, 03:53-13:21), 120 epochs, from the app's on-device staging.
+   1 deep, 2 core, 3 REM, 4 awake. */
+var STAGES = [4,1,1,1,1,2,2,1,1,2,2,2,1,1,1,1,2,2,1,4,2,1,1,1,1,2,2,1,1,2,2,2,1,1,1,1,2,2,1,1,1,1,1,1,2,2,2,1,1,1,2,3,3,3,2,2,2,2,2,2,2,2,2,1,1,2,2,2,2,2,2,4,2,2,2,1,1,2,2,2,2,2,2,2,2,2,4,3,3,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,3,3,3,2,4,4,2,2,1,1,1,1,1,2,3,3];
+(function drawHypnogram() {
+  var svg = document.getElementById('hypno'), NS = 'http://www.w3.org/2000/svg';
+  var W = 1200, H = 240, n = STAGES.length, step = W / n;
+  var level = { 4: 22, 3: 86, 2: 150, 1: 214 };
+  var color = { 1: 'var(--deep)', 2: 'var(--core)', 3: 'var(--rem)', 4: 'var(--awake)' };
+  var defs = document.createElementNS(NS, 'defs');
+  defs.innerHTML = '<linearGradient id="fade" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".22"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>';
+  svg.appendChild(defs);
+  [22, 86, 150, 214].forEach(function (y) {
+    var l = document.createElementNS(NS, 'line');
+    l.setAttribute('x1', 0); l.setAttribute('x2', W); l.setAttribute('y1', y); l.setAttribute('y2', y);
+    l.setAttribute('stroke', 'rgba(236,240,245,.06)'); l.setAttribute('vector-effect', 'non-scaling-stroke');
+    svg.appendChild(l);
+  });
+  var g = document.createElementNS(NS, 'g'); g.id = 'hypno-bars'; svg.appendChild(g);
+  var i = 0;
+  while (i < n) {
+    var s = STAGES[i], j = i; while (j < n && STAGES[j] === s) j++;
+    var r = document.createElementNS(NS, 'rect');
+    r.setAttribute('x', i * step); r.setAttribute('width', (j - i) * step + 0.6);
+    r.setAttribute('y', level[s] - 9); r.setAttribute('height', 18); r.setAttribute('rx', 4);
+    r.setAttribute('fill', color[s]);
+    g.appendChild(r);
+    var glow = document.createElementNS(NS, 'rect');
+    glow.setAttribute('x', i * step); glow.setAttribute('width', (j - i) * step);
+    glow.setAttribute('y', level[s] + 9); glow.setAttribute('height', H - level[s] - 9);
+    glow.setAttribute('fill', color[s]); glow.setAttribute('opacity', '.07');
+    g.appendChild(glow);
+    i = j;
+  }
+})();
+
+document.querySelectorAll('.copy').forEach(function (b) {
+  b.addEventListener('click', function () {
+    var text = b.parentElement.querySelector('code').textContent;
+    var done = function () { b.textContent = 'Copied'; setTimeout(function () { b.textContent = 'Copy'; }, 1400); };
+    var fallback = function () { var r = document.createRange(); r.selectNodeContents(b.parentElement.querySelector('code')); var s = getSelection(); s.removeAllRanges(); s.addRange(r); b.textContent = 'Press ⌘C'; };
+    try { navigator.clipboard.writeText(text).then(done, fallback); } catch (e) { fallback(); }
+  });
+});
+
+var nav = document.getElementById('nav');
+addEventListener('scroll', function () { nav.classList.toggle('scrolled', scrollY > 8); }, { passive: true });
+
+if (window.gsap && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  gsap.registerPlugin(ScrollTrigger);
+  var ease = 'expo.out';
+  gsap.from('.hero-copy > *', { y: 24, opacity: 0, duration: 1.1, ease: ease, stagger: 0.08 });
+  gsap.from('.phone.front', { y: 80, rotate: 8, opacity: 0, duration: 1.4, ease: ease, delay: 0.15 });
+  gsap.from('.phone.back', { y: 120, rotate: -12, opacity: 0, duration: 1.4, ease: ease, delay: 0.3 });
+  gsap.from('.chip', { y: 30, opacity: 0, duration: 1.1, ease: ease, delay: 0.7 });
+  gsap.fromTo('#hypno-bars', { clipPath: 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0% 0 0)', duration: 2.4, ease: 'power2.inOut', delay: 0.4 });
+  gsap.to('.phone.front', { y: -40, ease: 'none', scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: true } });
+  gsap.to('.phone.back', { y: -80, ease: 'none', scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: true } });
+  gsap.utils.toArray('.feature').forEach(function (f) {
+    gsap.from(f.querySelector('.feature-copy'), { y: 40, opacity: 0, duration: 1, ease: ease, scrollTrigger: { trigger: f, start: 'top 80%' } });
+    gsap.from(f.querySelector('.media'), { y: 60, opacity: 0, scale: 0.97, duration: 1.2, ease: ease, scrollTrigger: { trigger: f, start: 'top 80%' } });
+  });
+  gsap.from('.stop', { y: 30, opacity: 0, duration: 0.9, ease: ease, stagger: 0.12, scrollTrigger: { trigger: '.flow', start: 'top 80%' } });
+  gsap.fromTo('#flowline', { attr: { x2: 24 } }, { attr: { x2: 976 }, duration: 1.6, ease: 'power2.inOut', scrollTrigger: { trigger: '.flow', start: 'top 80%' } });
+  gsap.from('.proof .cell', { y: 20, opacity: 0, duration: 0.9, ease: ease, stagger: 0.08, scrollTrigger: { trigger: '.proof', start: 'top 90%' } });
+}
+</script>
+</body>
+</html>

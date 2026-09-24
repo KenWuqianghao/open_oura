@@ -9,6 +9,7 @@ use anyhow::{anyhow, Context, Result};
 use clap::{Parser, Subcommand};
 
 use oura_link::ble::{self, BleTransport};
+use oura_link::pair::{self, FeaturePlan, FeatureResult, Ownership, PairOptions};
 use oura_link::OuraClient;
 use oura_store::storage::Store;
 
@@ -46,8 +47,19 @@ enum Command {
     Scan,
     /// Pair with a factory-reset ring: install a fresh 16-byte auth key and save
     /// it to `--key-file` (or `oura-<serial>.key`). If the key file already
-    /// exists, that key is re-installed instead of generating a new one.
-    Pair,
+    /// exists, that key is re-installed instead of generating a new one. Then
+    /// sets the ring clock and turns on the measurement features a self-paired
+    /// ring leaves off (see `--features`). Resets the sync cursor when a key was
+    /// installed. Use `--name ""`: a reset ring advertises no name.
+    Pair {
+        /// Features to enable after pairing: none | core (daytime HR + SpO2) |
+        /// full (core + real steps + exercise HR + resting HR if off).
+        #[arg(long, default_value = "core")]
+        features: String,
+    },
+    /// Read-only: who owns this ring? Reports factory-reset / paired-with-this-key
+    /// / owned-elsewhere from the auth verdict for `--key-file` (or a zero key).
+    Probe,
     /// Connect and print device info (firmware, serial, battery, capabilities).
     Info,
     /// DESTRUCTIVE: wipe the ring back to factory state (tag `0x1a`). Erases the
@@ -252,7 +264,8 @@ async fn main() -> Result<()> {
 
     match &cli.command {
         Command::Scan => cmd_scan(&cli).await,
-        Command::Pair => cmd_pair(&cli).await,
+        Command::Pair { features } => cmd_pair(&cli, features).await,
+        Command::Probe => cmd_probe(&cli, &key).await,
         Command::Info => cmd_info(&cli, &key).await,
         Command::FactoryReset { yes } => cmd_factory_reset(&cli, &key, *yes).await,
         Command::Sync { sync_time } => cmd_sync(&cli, &key, *sync_time).await,
@@ -471,15 +484,28 @@ async fn cmd_scan(cli: &Cli) -> Result<()> {
     Ok(())
 }
 
-async fn cmd_pair(cli: &Cli) -> Result<()> {
-    let client = connect(cli).await?;
-    let serial = client.serial().await.unwrap_or_else(|_| "unknown".into());
+fn describe_feature(f: &pair::FeatureOutcome) -> String {
+    let result = match &f.result {
+        FeatureResult::Set => "enabled".to_string(),
+        FeatureResult::AlreadySet => "already on".to_string(),
+        FeatureResult::Rejected(e) => format!("rejected ({e})"),
+        FeatureResult::Skipped(why) => format!("skipped ({why})"),
+    };
+    format!("  {:<12} {:<9} {result}", f.name, feature_mode_name(f.mode))
+}
+
+async fn cmd_pair(cli: &Cli, features: &str) -> Result<()> {
+    let plan = FeaturePlan::parse(features)
+        .ok_or_else(|| anyhow!("--features must be one of none | core | full"))?;
 
     // Reuse an existing key file if present; otherwise mint a fresh key.
     let (key, reused) = match &cli.key_file {
         Some(p) if p.exists() => (load_key(&cli.key_file)?.expect("key file exists"), true),
         _ => (generate_key()?, false),
     };
+
+    let client = connect(cli).await?;
+    let serial = client.serial().await.unwrap_or_else(|_| "unknown".into());
     let out = cli
         .key_file
         .clone()
@@ -489,27 +515,91 @@ async fn cmd_pair(cli: &Cli) -> Result<()> {
     // only copy of a key that may already be live on the ring.
     save_key(&out, &key)?;
 
-    client
-        .set_auth_key(&key)
+    let opts = PairOptions {
+        key,
+        plan,
+        sync_time: true,
+    };
+    let report = pair::pair(&client, &opts, |stage| println!("… {}", stage.tag()))
         .await
-        .context("set_auth_key failed (is the ring factory-reset / removed from the app?)")?;
+        .context("pairing (is the ring factory-reset / removed from the app?)")?;
+
+    // The store learns the device now, and a freshly keyed ring restarts its
+    // clock: a stale cursor would make every later sync come back empty.
+    let store = Store::open(&cli.db)?;
+    store.upsert_device(
+        &report.serial,
+        report.hardware_id.as_deref(),
+        report.firmware.as_ref(),
+    )?;
+    if report.key_installed {
+        store.reset_cursor(&report.serial)?;
+    }
+
     println!(
-        "Installed {} auth key on {serial}; saved to {}",
+        "{} {} auth key on {} ({:?}); saved to {}",
+        if report.key_installed {
+            "Installed"
+        } else {
+            "Confirmed"
+        },
         if reused { "existing" } else { "new" },
+        report.serial,
+        report.generation,
         out.display()
     );
-
-    let result = client.authenticate(&key).await.context("verifying auth")?;
-    println!("Authenticated: {result:?}");
-    match client.battery().await {
-        Ok(b) => println!("Battery: {}%", b.percent),
-        Err(e) => println!("Battery: <{e}>"),
+    if let Some(fw) = &report.firmware {
+        println!("Firmware: {} (api {})", fw.firmware_version, fw.api_version);
+    }
+    match report.battery_pct {
+        Some(pct) => println!("Battery: {pct}%"),
+        None => println!("Battery: <unavailable>"),
+    }
+    if !report.features.is_empty() {
+        println!("Features:");
+        for f in &report.features {
+            println!("{}", describe_feature(f));
+        }
+    }
+    if report.key_installed {
+        println!("Sync cursor reset to 0 for {}.", report.serial);
     }
 
     println!(
         "\nPaired. Use it with:  oura --key-file {} info",
         out.display()
     );
+    let _ = client.transport().disconnect().await;
+    Ok(())
+}
+
+async fn cmd_probe(cli: &Cli, key: &Option<[u8; 16]>) -> Result<()> {
+    let client = connect(cli).await?;
+    let report = pair::probe(&client, key.as_ref())
+        .await
+        .context("probing")?;
+    println!("Serial:    {}", report.serial);
+    println!(
+        "Hardware:  {} ({:?})",
+        report.hardware_id.as_deref().unwrap_or("?"),
+        report.generation
+    );
+    if let Some(fw) = &report.firmware {
+        println!("Firmware:  {} (api {})", fw.firmware_version, fw.api_version);
+    }
+    let (state, hint) = match report.ownership {
+        Ownership::FactoryReset => (
+            "factory-reset",
+            "no key installed: `oura --name \"\" pair` will work",
+        ),
+        Ownership::PairedWithThisKey => ("paired with this key", "ready: `oura --key-file … sync`"),
+        Ownership::OwnedElsewhere(_) => (
+            "owned elsewhere",
+            "another key is installed (the official app or another host); factory-reset first",
+        ),
+        Ownership::Unknown(_) => ("unknown", "the ring gave an unexpected auth answer"),
+    };
+    println!("Ownership: {state} — {hint}");
     let _ = client.transport().disconnect().await;
     Ok(())
 }

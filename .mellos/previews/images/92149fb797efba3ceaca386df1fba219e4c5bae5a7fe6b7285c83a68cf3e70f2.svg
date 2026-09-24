@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1528" height="982" viewBox="0 0 1528 982" role="img" aria-labelledby="map-title map-desc">
+<title id="map-title">Health hub: 24/7 MCP endpoint for Grok Bot (step 1 ring hub, step 2 iOS push)</title>
+<desc id="map-desc">15 个节点，14 条依赖。完整说明与验证记录在地图文档中。</desc>
+<defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L8 4 L0 8 Z" fill="#8995a5"/></marker></defs>
+<rect width="1528" height="982" fill="#ffffff"/>
+<g font-family="Segoe UI, Microsoft YaHei, Noto Sans CJK SC, sans-serif">
+<rect x="8" y="10" width="1512" height="130" rx="5" fill="#fafbfc"/>
+<text x="16" y="25" font-size="12" fill="#6a7687">客户端与部署</text>
+<rect x="8" y="296" width="1512" height="130" rx="5" fill="#fafbfc"/>
+<text x="16" y="311" font-size="12" fill="#6a7687">服务</text>
+<rect x="8" y="556" width="1512" height="130" rx="5" fill="#fafbfc"/>
+<text x="16" y="571" font-size="12" fill="#6a7687">领域逻辑</text>
+<rect x="8" y="816" width="1512" height="130" rx="5" fill="#fafbfc"/>
+<text x="16" y="831" font-size="12" fill="#6a7687">数据契约与存储</text>
+<polyline points="144,670 144,878" fill="none" stroke="#8995a5" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="96,410 96,462 360,462 360,774 480,774 480,878" fill="none" stroke="#8995a5" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="168,410 168,488 488,488 488,618" fill="none" stroke="#8995a5" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="128,410 128,618" fill="none" stroke="#8995a5" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="120,124 120,202 624,202 624,722 104,722 104,878" fill="none" stroke="#8995a5" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="400,124 400,176 88,176 88,358" fill="none" stroke="#8995a5" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="720,124 720,228 160,228 160,358" fill="none" stroke="#8995a5" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="808,670 808,748 192,748 192,878" fill="none" stroke="#8995a5" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="408,410 408,462 800,462 800,618" fill="none" stroke="#8995a5" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="1032,124 1032,176 416,176 416,358" fill="none" stroke="#8995a5" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="1352,124 1352,254 512,254 512,358" fill="none" stroke="#8995a5" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="832,410 832,514 648,514 648,722 776,722 776,878" fill="none" stroke="#8995a5" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="1128,670 1128,722 880,722 880,878" fill="none" stroke="#8995a5" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="504,410 504,488 1120,488 1120,618" fill="none" stroke="#8995a5" stroke-width="1.4" marker-end="url(#arrow)"/>
+<g data-node="summary-json"><title>summary JSON (build_summary) · ■ 已验证</title>
+<rect x="16" y="878" width="264" height="52" rx="5" fill="#e9f5ee" stroke="#67a883" stroke-width="1.5"/>
+<text x="148" y="899" text-anchor="middle" font-size="14" fill="#286247">summary JSON (build_summary)</text>
+<text x="148" y="918" text-anchor="middle" font-size="11" fill="#286247">■ 已验证</text></g>
+<g data-node="hub-store"><title>hub store (SQLite snapshots) · ■ 已验证</title>
+<rect x="336" y="878" width="280" height="52" rx="5" fill="#e9f5ee" stroke="#67a883" stroke-width="1.5"/>
+<text x="476" y="899" text-anchor="middle" font-size="14" fill="#286247">▤ hub store (SQLite snapshots)</text>
+<text x="476" y="918" text-anchor="middle" font-size="11" fill="#286247">■ 已验证</text></g>
+<g data-node="agent-status"><title>agent status doc (oura-summary::agent) · ■ 已验证</title>
+<rect x="16" y="618" width="296" height="52" rx="5" fill="#e9f5ee" stroke="#67a883" stroke-width="1.5"/>
+<text x="164" y="639" text-anchor="middle" font-size="14" fill="#286247">agent status doc (oura-summary:…</text>
+<text x="164" y="658" text-anchor="middle" font-size="11" fill="#286247">■ 已验证</text></g>
+<g data-node="mcp-jsonrpc"><title>MCP JSON-RPC (stateless) · ■ 已验证</title>
+<rect x="368" y="618" width="232" height="52" rx="5" fill="#e9f5ee" stroke="#67a883" stroke-width="1.5"/>
+<text x="484" y="639" text-anchor="middle" font-size="14" fill="#286247">MCP JSON-RPC (stateless)</text>
+<text x="484" y="658" text-anchor="middle" font-size="11" fill="#286247">■ 已验证</text></g>
+<g data-node="hub-http"><title>oura-hub server (axum) · ■ 已验证</title>
+<rect x="16" y="358" width="232" height="52" rx="5" fill="#e9f5ee" stroke="#67a883" stroke-width="1.5"/>
+<text x="132" y="379" text-anchor="middle" font-size="14" fill="#286247">◆ oura-hub server (axum)</text>
+<text x="132" y="398" text-anchor="middle" font-size="11" fill="#286247">■ 已验证</text></g>
+<g data-node="cli-push"><title>oura push (CLI) · ⠿ 开发中</title>
+<rect x="16" y="72" width="200" height="52" rx="5" fill="#fff4d9" stroke="#c48c24" stroke-width="1.5"/>
+<text x="116" y="93" text-anchor="middle" font-size="14" fill="#805910">oura push (CLI)</text>
+<text x="116" y="112" text-anchor="middle" font-size="11" fill="#805910">⠿ 开发中</text></g>
+<g data-node="deploy"><title>Dockerfile + compose + docs · ⠿ 开发中</title>
+<rect x="272" y="72" width="256" height="52" rx="5" fill="#fff4d9" stroke="#c48c24" stroke-width="1.5"/>
+<text x="400" y="93" text-anchor="middle" font-size="14" fill="#805910">Dockerfile + compose + docs</text>
+<text x="400" y="112" text-anchor="middle" font-size="11" fill="#805910">⠿ 开发中</text></g>
+<g data-node="grok-wiring"><title>Grok Bot wiring + curl check · ⠿ 开发中</title>
+<rect x="584" y="72" width="264" height="52" rx="5" fill="#fff4d9" stroke="#c48c24" stroke-width="1.5"/>
+<text x="716" y="93" text-anchor="middle" font-size="14" fill="#805910">Grok Bot wiring + curl check</text>
+<text x="716" y="112" text-anchor="middle" font-size="11" fill="#805910">⠿ 开发中</text></g>
+<g data-node="ios-hub-payload"><title>iOS HubPayload (overlay models on FFI JSON) · ⠿ 开发中</title>
+<rect x="656" y="618" width="296" height="52" rx="5" fill="#fff4d9" stroke="#c48c24" stroke-width="1.5"/>
+<text x="804" y="639" text-anchor="middle" font-size="14" fill="#805910">iOS HubPayload (overlay models …</text>
+<text x="804" y="658" text-anchor="middle" font-size="11" fill="#805910">⠿ 开发中</text></g>
+<g data-node="ios-hub-pusher"><title>iOS HubPusher (URLSession, Keychain token) · ⠿ 开发中</title>
+<rect x="304" y="358" width="312" height="52" rx="5" fill="#fff4d9" stroke="#c48c24" stroke-width="1.5"/>
+<text x="460" y="379" text-anchor="middle" font-size="14" fill="#805910">◆ iOS HubPusher (URLSession, Keyc…</text>
+<text x="460" y="398" text-anchor="middle" font-size="11" fill="#805910">⠿ 开发中</text></g>
+<g data-node="ios-hooks-push"><title>AppHooks + RootView wiring · ⠿ 开发中</title>
+<rect x="904" y="72" width="248" height="52" rx="5" fill="#fff4d9" stroke="#c48c24" stroke-width="1.5"/>
+<text x="1028" y="93" text-anchor="middle" font-size="14" fill="#805910">AppHooks + RootView wiring</text>
+<text x="1028" y="112" text-anchor="middle" font-size="11" fill="#805910">⠿ 开发中</text></g>
+<g data-node="ios-hub-settings"><title>Settings: Health hub section · ⠿ 开发中</title>
+<rect x="1208" y="72" width="280" height="52" rx="5" fill="#fff4d9" stroke="#c48c24" stroke-width="1.5"/>
+<text x="1348" y="93" text-anchor="middle" font-size="14" fill="#805910">▣ Settings: Health hub section</text>
+<text x="1348" y="112" text-anchor="middle" font-size="11" fill="#805910">⠿ 开发中</text></g>
+<g data-node="store-replication"><title>oura-store::replication (export/import rows) · ■ 已验证</title>
+<rect x="672" y="878" width="312" height="52" rx="5" fill="#e9f5ee" stroke="#67a883" stroke-width="1.5"/>
+<text x="828" y="899" text-anchor="middle" font-size="14" fill="#286247">▤ oura-store::replication (export…</text>
+<text x="828" y="918" text-anchor="middle" font-size="11" fill="#286247">■ 已验证</text></g>
+<g data-node="hub-events"><title>hub /ingest/events + /export/events (ring replica) · ■ 已验证</title>
+<rect x="672" y="358" width="312" height="52" rx="5" fill="#e9f5ee" stroke="#67a883" stroke-width="1.5"/>
+<text x="828" y="379" text-anchor="middle" font-size="14" fill="#286247">◆ hub /ingest/events + /export/ev…</text>
+<text x="828" y="398" text-anchor="middle" font-size="11" fill="#286247">■ 已验证</text></g>
+<g data-node="core-export-ffi"><title>oura-core exportBatchJson · ⠿ 开发中</title>
+<rect x="1008" y="618" width="240" height="52" rx="5" fill="#fff4d9" stroke="#c48c24" stroke-width="1.5"/>
+<text x="1128" y="639" text-anchor="middle" font-size="14" fill="#805910">oura-core exportBatchJson</text>
+<text x="1128" y="658" text-anchor="middle" font-size="11" fill="#805910">⠿ 开发中</text></g>
+</g></svg>

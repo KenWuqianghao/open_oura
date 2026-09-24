@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/DrawSVGPlugin.min.js"></script>
+<style>
+  :root {
+    --bg: #000000; --card: #1c1c1e; --ink: #ffffff;
+    /* video-only: the app's rgba(235,235,245,.6) flattened on black */
+    --muted: #98989f;
+    --accent: #0a84ff; --readiness: #30b0c7; --sleep: #5e5ce6; --activity: #ff9f0a; --good: #30d158;
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--bg); color: var(--ink); font-family: var(--font); }
+  .beat { position: absolute; inset: 0; width: 1920px; height: 1080px; overflow: hidden; background: var(--bg); opacity: 0; }
+  #b1 { opacity: 1; }
+  .stage { width: 100%; height: 100%; }
+
+  h1 { font-size: 84px; font-weight: 650; letter-spacing: -0.02em; line-height: 1.04; }
+  h2 { font-size: 64px; font-weight: 650; letter-spacing: -0.02em; line-height: 1.06; }
+  .sub { font-size: 32px; line-height: 1.35; color: var(--muted); margin-top: 26px; max-width: 700px; }
+  .kicker { font-size: 24px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 22px; }
+  .pill { display: inline-flex; align-items: center; gap: 12px; padding: 14px 24px; border-radius: 999px; background: var(--card); font-size: 28px; font-weight: 600; }
+  .pill .dot { width: 14px; height: 14px; border-radius: 50%; }
+
+  .split { display: grid; grid-template-columns: 820px 1fr; align-items: center; height: 100%; padding: 0 150px; gap: 40px; }
+  .right { display: flex; justify-content: center; align-items: center; gap: 36px; height: 100%; }
+
+  .phone { width: 420px; height: 885px; border-radius: 66px; background: #0b0b0c; padding: 12px; box-shadow: 0 0 0 2px #2c2c2e, 0 50px 140px rgba(0,0,0,.7); position: relative; flex: none; }
+  .phone img { width: 100%; height: 100%; border-radius: 54px; object-fit: cover; display: block; }
+
+  .browser { border-radius: 18px; overflow: hidden; background: var(--card); box-shadow: 0 0 0 1px #2c2c2e, 0 50px 140px rgba(0,0,0,.7); flex: none; }
+  .browser .bar { height: 54px; display: flex; align-items: center; gap: 10px; padding: 0 20px; }
+  .browser .bar i { width: 14px; height: 14px; border-radius: 50%; background: #3a3a3c; display: block; }
+  .browser .bar .url { margin-left: 18px; flex: 1; height: 34px; border-radius: 10px; background: #2c2c2e; color: var(--muted); font-size: 18px; display: flex; align-items: center; padding: 0 16px; font-family: var(--mono); }
+  .browser .view { overflow: hidden; }
+  .browser img { width: 100%; display: block; }
+
+  .term { background: #0d0d0f; border-radius: 18px; box-shadow: 0 0 0 1px #2c2c2e, 0 50px 140px rgba(0,0,0,.7); overflow: hidden; }
+  .term .bar { height: 50px; display: flex; align-items: center; gap: 10px; padding: 0 20px; background: #1c1c1e; }
+  .term .bar i { width: 14px; height: 14px; border-radius: 50%; background: #3a3a3c; display: block; }
+  .term .body { padding: 30px 36px; font-family: var(--mono); font-size: 25px; line-height: 1.55; color: #e5e5ea; white-space: pre; }
+  .term .p { color: var(--good); }
+  .term .a { color: var(--accent); }
+  .term .ok { color: var(--good); font-weight: 700; }
+  .term .dim { color: var(--muted); }
+  .term .line { opacity: 0; }
+
+  /* b1 + b8: the mark */
+  .center { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; }
+  .mark { width: 260px; height: 260px; }
+  .word { display: inline-block; }
+
+  /* b3 */
+  .pills { display: flex; gap: 18px; margin-top: 40px; flex-wrap: wrap; }
+  #b3 .back { transform: rotate(-4deg) translateY(30px); opacity: .9; }
+
+  /* b5 */
+  #b5 .stage { display: flex; flex-direction: column; padding: 90px 150px 0; }
+  #b5 .row { display: flex; align-items: flex-start; gap: 60px; margin-top: 50px; }
+  #b5 .browser { width: 1160px; }
+  #b5 .phone { margin-top: -40px; }
+  .tap { position: absolute; left: 282px; top: 520px; width: 140px; height: 140px; margin: -70px 0 0 -70px; border-radius: 50%; border: 6px solid #ffffff; opacity: 0; }
+
+  /* b6 */
+  #b6 .stage { display: flex; flex-direction: column; padding: 90px 150px 0; }
+  #b6 .row { display: flex; gap: 60px; margin-top: 48px; align-items: flex-start; }
+  #b6 .browser { width: 1180px; }
+  #b6 .browser .view { height: 640px; }
+  .stat { background: var(--card); border-radius: 26px; padding: 36px 40px; width: 380px; }
+  .stat .n { font-size: 84px; font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+  .stat .l { font-size: 26px; color: var(--muted); margin-top: 8px; line-height: 1.3; }
+  .stat + .stat { margin-top: 24px; }
+
+  /* b7 */
+  #b7 .split { grid-template-columns: 620px 1fr; }
+  #b7 .term { width: 960px; }
+  #b7 .term .body { font-size: 22px; }
+  #b4 .term .body { font-size: 22px; }
+  .chip { display: inline-flex; align-items: center; gap: 12px; margin: 22px 0 0 36px; padding: 10px 20px; border-radius: 999px; background: rgba(10,132,255,.16); color: var(--accent); font-family: var(--mono); font-size: 22px; font-weight: 600; opacity: 0; }
+  .json { margin: 20px 36px 32px; padding: 24px 28px; border-radius: 14px; background: #161618; font-family: var(--mono); font-size: 18px; line-height: 1.5; white-space: pre; color: #e5e5ea; opacity: 0; }
+  .json .k { color: #64d2ff; } .json .v { color: #ffd60a; }
+
+  /* b8 */
+  .flow { display: flex; align-items: center; gap: 22px; margin-top: 54px; }
+  .flow .arrow { font-size: 36px; color: var(--muted); }
+  .repo { margin-top: 56px; font-size: 30px; color: var(--muted); font-family: var(--mono); }
+</style>
+</head>
+<body>
+<div data-composition-id="video" data-width="1920" data-height="1080" data-start="0" data-duration="32"
+     style="position:relative;width:1920px;height:1080px;">
+
+  <!-- 1 · hook -->
+  <div class="beat" id="b1"><div class="stage center" id="b1-stage" data-layout-allow-overflow>
+    <svg class="mark" id="b1-mark" viewBox="0 0 260 260">
+      <circle id="b1-r1" cx="130" cy="130" r="110" fill="none" stroke="#30b0c7" stroke-width="22" stroke-linecap="round" transform="rotate(-90 130 130)"/>
+      <circle id="b1-r2" cx="130" cy="130" r="78" fill="none" stroke="#5e5ce6" stroke-width="22" stroke-linecap="round" transform="rotate(-90 130 130)"/>
+      <circle id="b1-r3" cx="130" cy="130" r="46" fill="none" stroke="#ff9f0a" stroke-width="22" stroke-linecap="round" transform="rotate(-90 130 130)"/>
+    </svg>
+    <h1 style="margin-top:56px"><span class="word" id="b1-w1">Open</span> <span class="word" id="b1-w2">Oura</span></h1>
+    <div class="sub" id="b1-sub" style="max-width:none">Your ring. Your data. No cloud, no account.</div>
+  </div></div>
+
+  <!-- 2 · pair -->
+  <div class="beat" id="b2"><div class="stage split">
+    <div id="b2-text">
+      <div class="kicker" style="color:var(--accent)">1 · iPhone</div>
+      <h2>Pair the ring yourself.</h2>
+      <div class="sub">The app makes its own key on your iPhone and syncs the ring over Bluetooth.</div>
+      <div class="pills"><div class="pill" id="b2-chip"><span class="dot" style="background:var(--good)"></span>Key stays in the Keychain</div></div>
+    </div>
+    <div class="right"><div class="phone" id="b2-phone"><img src="assets/ios-pair.jpg" alt=""></div></div>
+  </div></div>
+
+  <!-- 3 · scores -->
+  <div class="beat" id="b3"><div class="stage split">
+    <div id="b3-text">
+      <div class="kicker" style="color:var(--readiness)">Computed on the phone</div>
+      <h2>Readiness, sleep, and activity.</h2>
+      <div class="sub">Scores, trends, and vitals from your own ring data. Nothing leaves the phone unless you say so.</div>
+      <div class="pills">
+        <div class="pill" id="b3-p1"><span class="dot" style="background:var(--readiness)"></span>Readiness 96</div>
+        <div class="pill" id="b3-p2"><span class="dot" style="background:var(--sleep)"></span>Sleep 89</div>
+        <div class="pill" id="b3-p3"><span class="dot" style="background:var(--activity)"></span>Activity 69</div>
+      </div>
+    </div>
+    <div class="right">
+      <div class="phone back" id="b3-back"><img src="assets/ios-vitals.jpg" alt=""></div>
+      <div class="phone" id="b3-front" style="margin-left:-170px"><img src="assets/ios-summary.jpg" alt=""></div>
+    </div>
+  </div></div>
+
+  <!-- 4 · hub install -->
+  <div class="beat" id="b4"><div class="stage split" style="grid-template-columns: 540px 1fr">
+    <div id="b4-text">
+      <div class="kicker" style="color:var(--good)">2 · Your hub</div>
+      <h2>One command on your server.</h2>
+      <div class="sub">A home server, a Steam Deck, or a Mac. Docker or podman. Tailscale keeps it private.</div>
+    </div>
+    <div class="term" id="b4-term" style="width:1080px">
+      <div class="bar"><i></i><i></i><i></i></div>
+      <div class="body"><span class="p">~/oura-hub $</span> <span id="b4-cmd"></span>
+<div class="line" id="b4-l1"><span class="a">==></span> container engine: docker</div><div class="line" id="b4-l2"><span class="a">==></span> made a new token in ~/.config/oura-hub.env</div><div class="line" id="b4-l3"><span class="a">==></span> Tailscale: homeserver.tail-demo.ts.net</div><div class="line" id="b4-l4"><span class="a">==></span> running as the docker container oura-hub</div><div class="line" id="b4-l5">
+<span class="ok">The hub is running.</span>
+
+  Web app      http://homeserver.tail-demo.ts.net:8787
+  Sign in      http://homeserver.tail-demo.ts.net:8787/#token=<span class="dim">••••••</span>
+  MCP address  http://homeserver.tail-demo.ts.net:8787/mcp/<span class="dim">••••••</span></div></div>
+    </div>
+  </div></div>
+
+  <!-- 5 · connect -->
+  <div class="beat" id="b5"><div class="stage">
+    <h2 id="b5-h">Scan the code. Tap Connect.</h2>
+    <div class="row">
+      <div class="browser" id="b5-browser">
+        <div class="bar"><i></i><i></i><i></i><div class="url">homeserver.tail-demo.ts.net:8787/#/connect</div></div>
+        <div class="view" id="b5-view"><img id="b5-img" data-layout-allow-overflow src="assets/web-dark-connect.jpg" alt=""></div>
+      </div>
+      <div class="phone" id="b5-phone"><img src="assets/ios-prompt.jpg" alt=""><div class="tap" id="b5-tap"></div></div>
+    </div>
+  </div></div>
+
+  <!-- 6 · backup -->
+  <div class="beat" id="b6"><div class="stage">
+    <h2 id="b6-h">Every night, backed up on your server.</h2>
+    <div class="row">
+      <div class="browser" id="b6-browser">
+        <div class="bar"><i></i><i></i><i></i><div class="url">homeserver.tail-demo.ts.net:8787/#/sleep</div></div>
+        <div class="view"><img id="b6-img" data-layout-allow-overflow src="assets/web-dark-sleep.jpg" alt=""></div>
+      </div>
+      <div>
+        <div class="stat" id="b6-s1"><div class="n" id="b6-count">0</div><div class="l">raw ring events in the hub's own copy</div></div>
+        <div class="stat" id="b6-s2"><div class="n">9 h 30</div><div class="l">in bed, with the stages from the on-device model</div></div>
+      </div>
+    </div>
+  </div></div>
+
+  <!-- 7 · agent -->
+  <div class="beat" id="b7"><div class="stage split">
+    <div id="b7-text">
+      <div class="kicker" style="color:var(--sleep)">3 · Your agent</div>
+      <h2>Your AI agent reads it over MCP.</h2>
+      <div class="sub">Claude, Cursor, or any MCP client. It gets your status, your sleep, and how fresh the data is.</div>
+    </div>
+    <div class="term" id="b7-term">
+      <div class="bar"><i></i><i></i><i></i></div>
+      <div class="body" style="padding-bottom:6px"><span class="p">$</span> <span id="b7-cmd"></span></div>
+      <div class="chip" id="b7-chip">get_status_now ✓</div>
+      <div class="json" id="b7-json">{
+  <span class="k">"last_night"</span>: { <span class="k">"in_bed_h"</span>: <span class="v">9.5</span>, <span class="k">"efficiency_pct"</span>: <span class="v">92.3</span>,
+                  <span class="k">"deep_pct"</span>: <span class="v">32.6</span>, <span class="k">"hrv_ms"</span>: <span class="v">74</span>, <span class="k">"rhr"</span>: <span class="v">53</span> },
+  <span class="k">"vitals"</span>: { <span class="k">"hrv_ms"</span>: { <span class="k">"latest"</span>: <span class="v">36</span>, <span class="k">"baseline"</span>: <span class="v">74</span>, <span class="k">"delta_pct"</span>: <span class="v">-52</span> } },
+  <span class="k">"freshness"</span>: { <span class="k">"ring_last_sync_age_h"</span>: <span class="v">0.7</span> }
+}</div>
+    </div>
+  </div></div>
+
+  <!-- 8 · end -->
+  <div class="beat" id="b8"><div class="stage center" id="b8-stage" data-layout-allow-overflow>
+    <svg class="mark" viewBox="0 0 260 260" style="width:180px;height:180px">
+      <circle id="b8-r1" cx="130" cy="130" r="110" fill="none" stroke="#30b0c7" stroke-width="22" stroke-linecap="round" transform="rotate(-90 130 130)"/>
+      <circle id="b8-r2" cx="130" cy="130" r="78" fill="none" stroke="#5e5ce6" stroke-width="22" stroke-linecap="round" transform="rotate(-90 130 130)"/>
+      <circle id="b8-r3" cx="130" cy="130" r="46" fill="none" stroke="#ff9f0a" stroke-width="22" stroke-linecap="round" transform="rotate(-90 130 130)"/>
+    </svg>
+    <h1 style="margin-top:40px" id="b8-h">Open Oura</h1>
+    <div class="flow" id="b8-flow">
+      <div class="pill"><span class="dot" style="background:var(--readiness)"></span>Ring</div><div class="arrow">→</div>
+      <div class="pill"><span class="dot" style="background:var(--accent)"></span>iPhone</div><div class="arrow">→</div>
+      <div class="pill"><span class="dot" style="background:var(--good)"></span>Your hub</div><div class="arrow">→</div>
+      <div class="pill"><span class="dot" style="background:var(--sleep)"></span>Your agent</div>
+    </div>
+    <div class="repo" id="b8-repo">github.com/KenWuqianghao/open_health</div>
+  </div></div>
+
+  <!-- AUDIO -->
+  <audio id="music" src="audio/music/theme.wav" data-start="0" data-duration="31.971" data-track-index="30" data-volume="0.85"></audio>
+  <audio id="sfx-pop" src="audio/sfx/pop.wav" data-start="0.9" data-duration="0.18" data-track-index="20" data-volume="0.5"></audio>
+  <audio id="sfx-tick1" src="audio/sfx/tick.wav" data-start="5.2" data-duration="0.06" data-track-index="21" data-volume="0.55"></audio>
+  <audio id="sfx-typing1" src="audio/sfx/typing1.wav" data-start="11.4" data-duration="1.15" data-track-index="22" data-volume="0.45"></audio>
+  <audio id="sfx-chime1" src="audio/sfx/chime.wav" data-start="13.6" data-duration="1.64" data-track-index="23" data-volume="0.7"></audio>
+  <audio id="sfx-tick2" src="audio/sfx/tick.wav" data-start="18.0" data-duration="0.06" data-track-index="24" data-volume="0.6"></audio>
+  <audio id="sfx-typing2" src="audio/sfx/typing2.wav" data-start="24.2" data-duration="1.55" data-track-index="25" data-volume="0.45"></audio>
+  <audio id="sfx-tick3" src="audio/sfx/tick.wav" data-start="25.9" data-duration="0.06" data-track-index="26" data-volume="0.55"></audio>
+  <audio id="sfx-chime2" src="audio/sfx/chime.wav" data-start="29.0" data-duration="1.64" data-track-index="27" data-volume="0.6"></audio>
+</div>
+
+<script>
+window.__timelines = window.__timelines || {};
+gsap.registerPlugin(DrawSVGPlugin);
+var tl = gsap.timeline({ paused: true });
+
+var B = { b1: [0, 3.4], b2: [3.4, 7.2], b3: [7.2, 11.0], b4: [11.0, 15.2], b5: [15.2, 19.6], b6: [19.6, 23.8], b7: [23.8, 28.2], b8: [28.2, 32.0] };
+Object.keys(B).forEach(function (id, i, ids) {
+  if (i > 0) tl.set("#" + id, { opacity: 1 }, B[id][0]);
+  if (i < ids.length - 1) tl.set("#" + id, { opacity: 0 }, B[id][1]);
+});
+function dur(id) { return B[id][1] - B[id][0]; }
+function type(el, text, start, d) {
+  el = document.getElementById(el);
+  for (var i = 0; i < text.length; i++) (function (k) {
+    tl.call(function () { el.textContent = text.substring(0, k + 1); }, null, start + (k / text.length) * d);
+  })(i);
+}
+
+/* 1 · hook */
+var t = B.b1[0];
+tl.fromTo("#b1-r1", { drawSVG: "0%" }, { drawSVG: "0% 82%", duration: 1.0, ease: "power3.out" }, t + 0.1);
+tl.fromTo("#b1-r2", { drawSVG: "0%" }, { drawSVG: "0% 74%", duration: 1.0, ease: "power3.out" }, t + 0.25);
+tl.fromTo("#b1-r3", { drawSVG: "0%" }, { drawSVG: "0% 58%", duration: 1.0, ease: "power3.out" }, t + 0.4);
+tl.fromTo("#b1-w1", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.6, ease: "power4.out" }, t + 0.8);
+tl.fromTo("#b1-w2", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.6, ease: "power4.out" }, t + 0.95);
+tl.fromTo("#b1-sub", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" }, t + 1.5);
+tl.fromTo("#b1-stage", { scale: 1.0 }, { scale: 1.05, duration: dur("b1"), ease: "power1.inOut" }, t);
+
+/* 2 · pair */
+t = B.b2[0];
+tl.fromTo("#b2-text", { opacity: 0, x: -50 }, { opacity: 1, x: 0, duration: 0.6, ease: "power3.out" }, t + 0.1);
+tl.fromTo("#b2-phone", { y: 260, rotate: 4 }, { y: 0, rotate: 0, duration: 0.9, ease: "power4.out" }, t);
+tl.fromTo("#b2-phone", { scale: 1.0 }, { scale: 1.04, duration: dur("b2") - 0.9, ease: "none", immediateRender: false }, t + 0.9);
+tl.fromTo("#b2-chip", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.45, ease: "back.out(2)" }, t + 1.8);
+
+/* 3 · scores */
+t = B.b3[0];
+tl.fromTo("#b3-text", { opacity: 0, x: -50 }, { opacity: 1, x: 0, duration: 0.6, ease: "power3.out" }, t + 0.1);
+tl.fromTo("#b3-front", { y: 200, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, ease: "power4.out" }, t);
+tl.fromTo("#b3-back", { x: 120, opacity: 0 }, { x: 0, opacity: 0.9, duration: 0.9, ease: "power3.out" }, t + 0.25);
+tl.fromTo("#b3-front", { x: 0 }, { x: -30, duration: dur("b3") - 0.8, ease: "none", immediateRender: false }, t + 0.8);
+["#b3-p1", "#b3-p2", "#b3-p3"].forEach(function (p, i) {
+  tl.fromTo(p, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.4, ease: "back.out(2)" }, t + 1.3 + i * 0.25);
+});
+
+/* 4 · hub */
+t = B.b4[0];
+tl.fromTo("#b4-text", { opacity: 0, x: -50 }, { opacity: 1, x: 0, duration: 0.6, ease: "power3.out" }, t + 0.1);
+tl.fromTo("#b4-term", { opacity: 0, y: 60 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, t);
+type("b4-cmd", "./deploy/install.sh", t + 0.4, 1.0);
+["#b4-l1", "#b4-l2", "#b4-l3", "#b4-l4"].forEach(function (l, i) {
+  tl.fromTo(l, { opacity: 0 }, { opacity: 1, duration: 0.15 }, t + 1.6 + i * 0.22);
+});
+tl.fromTo("#b4-l5", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, t + 2.6);
+tl.fromTo("#b4-term", { scale: 1.0 }, { scale: 1.03, duration: dur("b4") - 0.6, ease: "none", immediateRender: false }, t + 0.6);
+
+/* 5 · connect */
+t = B.b5[0];
+tl.fromTo("#b5-h", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, t + 0.05);
+tl.fromTo("#b5-browser", { opacity: 0, y: 60 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, t);
+tl.fromTo("#b5-img", { scale: 1.0, transformOrigin: "30% 45%" }, { scale: 1.35, duration: 1.4, ease: "power2.inOut" }, t + 0.5);
+tl.fromTo("#b5-phone", { x: 500, opacity: 0 }, { x: 0, opacity: 1, duration: 0.8, ease: "power4.out" }, t + 1.3);
+tl.fromTo("#b5-tap", { opacity: 0, scale: 0.4 }, { opacity: 1, scale: 1, duration: 0.25, ease: "power2.out" }, t + 2.8);
+tl.to("#b5-tap", { opacity: 0, scale: 1.4, duration: 0.5, ease: "power2.out" }, t + 3.05);
+
+/* 6 · backup */
+t = B.b6[0];
+tl.fromTo("#b6-h", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, t + 0.05);
+tl.fromTo("#b6-browser", { opacity: 0, y: 60 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, t);
+tl.fromTo("#b6-img", { y: 0 }, { y: -80, duration: dur("b6") - 0.6, ease: "power1.inOut" }, t + 0.6);
+tl.fromTo("#b6-s1", { opacity: 0, x: 60 }, { opacity: 1, x: 0, duration: 0.5, ease: "power3.out" }, t + 0.5);
+tl.fromTo("#b6-s2", { opacity: 0, x: 60 }, { opacity: 1, x: 0, duration: 0.5, ease: "power3.out" }, t + 1.6);
+var counter = { v: 0 }, countEl = document.getElementById("b6-count");
+tl.fromTo(counter, { v: 0 }, { v: 116890, duration: 1.6, ease: "power2.out",
+  onUpdate: function () { countEl.textContent = Math.round(counter.v).toLocaleString("en-US"); } }, t + 0.6);
+
+/* 7 · agent */
+t = B.b7[0];
+tl.fromTo("#b7-text", { opacity: 0, x: -50 }, { opacity: 1, x: 0, duration: 0.6, ease: "power3.out" }, t + 0.1);
+tl.fromTo("#b7-term", { opacity: 0, y: 60 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, t);
+type("b7-cmd", "claude mcp add --transport http health …/mcp/••••••", t + 0.4, 1.4);
+tl.fromTo("#b7-chip", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.35, ease: "back.out(2)" }, t + 2.1);
+tl.fromTo("#b7-json", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, t + 2.4);
+tl.fromTo("#b7-term", { scale: 1.0 }, { scale: 1.03, duration: dur("b7") - 0.6, ease: "none", immediateRender: false }, t + 0.6);
+
+/* 8 · end */
+t = B.b8[0];
+tl.fromTo("#b8-r1", { drawSVG: "0%" }, { drawSVG: "0% 82%", duration: 0.9, ease: "power3.out" }, t + 0.1);
+tl.fromTo("#b8-r2", { drawSVG: "0%" }, { drawSVG: "0% 74%", duration: 0.9, ease: "power3.out" }, t + 0.2);
+tl.fromTo("#b8-r3", { drawSVG: "0%" }, { drawSVG: "0% 58%", duration: 0.9, ease: "power3.out" }, t + 0.3);
+tl.fromTo("#b8-h", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.6, ease: "power4.out" }, t + 0.5);
+tl.fromTo("#b8-flow", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, t + 1.0);
+tl.fromTo("#b8-repo", { opacity: 0 }, { opacity: 1, duration: 0.6 }, t + 1.6);
+tl.fromTo("#b8-stage", { scale: 1.0 }, { scale: 1.04, duration: dur("b8"), ease: "power1.inOut" }, t);
+
+window.__timelines["video"] = tl;
+</script>
+</body>
+</html>
