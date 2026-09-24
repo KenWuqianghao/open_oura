@@ -1,0 +1,109 @@
+{
+  "version": 2,
+  "context": {
+    "summary": "Done 2026-09-24, uncommitted in 3 repos: open_oura site/ (landing + video), oura-hub (install.sh, Connect QR page, docs), open_health-redesign (apps/ios/install.sh, openoura:// link + prompt, README). Tests: open_oura 115, hub 24, iOS 39 pass.",
+    "next": "Ken reviews and commits. Open: install.sh must mkdir ~/oura-hub-agent/* for the podman unit (classifier blocked the edit); oura-hub repo is private; video shows Ken's real ring numbers."
+  },
+  "title": "Launch kit: easier setup, landing page, demo video",
+  "layers": [
+    {
+      "id": "tools",
+      "name": "Setup tools (code)",
+      "rank": 0
+    },
+    {
+      "id": "content",
+      "name": "Real product captures",
+      "rank": 1
+    },
+    {
+      "id": "deliver",
+      "name": "Deliverables",
+      "rank": 2
+    }
+  ],
+  "nodes": [
+    {
+      "id": "hub-install",
+      "label": "oura-hub deploy/install.sh",
+      "layer": "tools",
+      "status": "in-progress",
+      "evidence": "Docker path run end to end. Gap: podman unit now mounts ~/oura-hub-agent/*; install.sh must mkdir them (edit blocked by auto-mode classifier)",
+      "detail": "One command on the server: detects docker or podman, makes the token, builds, runs as a service, binds the Tailscale address, optional Funnel, prints the web URL, MCP URL, and connect link. Quadlet unit stops hardcoding Ken's IP."
+    },
+    {
+      "id": "hub-connect-qr",
+      "label": "Hub web: Connect iPhone QR",
+      "layer": "tools",
+      "status": "done",
+      "evidence": "svelte-check 0 errors; vite build; browser: #token= link signs in and opens Connect; BarcodeDetector decodes QR to the exact openoura:// link",
+      "detail": "Signed-in web UI shows a QR of openoura://hub?url=<origin>&token=<token> and the MCP URL / claude mcp add command to copy."
+    },
+    {
+      "id": "ios-deeplink",
+      "label": "iOS: openoura:// hub link",
+      "layer": "tools",
+      "status": "done",
+      "evidence": "HubPushTests 9/9 in sim; openoura:// link → UIKit prompt → Connect pushed summary + 116,890 events to local hub; cold launch OK",
+      "detail": "App registers the openoura URL scheme; onOpenURL parses HubLink and asks with a UIKit alert on the top screen (works over the pairing cover; re-asks if the cover closes under it). Connect sets URL + token, switches the hub on, resets replication for a new host, and pushes. First SwiftUI-alert version crashed (3 alerts on one state) and was replaced."
+    },
+    {
+      "id": "ios-install",
+      "label": "open_health apps/ios/install.sh",
+      "layer": "tools",
+      "status": "done",
+      "evidence": "--check found team + iPhone; the script's xcodebuild line built and signed for the phone (BUILD SUCCEEDED); install step not run on purpose",
+      "detail": "One command from a clean clone to the app on the phone: checks tools, builds the xcframework, xcodegen, detects the team ID and the connected iPhone, builds, installs, launches. Re-run every 7 days."
+    },
+    {
+      "id": "captures",
+      "label": "Screens: app, hub web, CLI",
+      "layer": "content",
+      "status": "done",
+      "evidence": "4 iOS sim screens, 12 hub web shots (light+dark), real install.sh output, real get_status_now JSON",
+      "detail": "Real screenshots / recordings: iOS simulator with seeded oura.db, hub web UI on a local hub with real data, terminal output of install + MCP call."
+    },
+    {
+      "id": "landing",
+      "label": "Landing page (setup guide)",
+      "layer": "deliver",
+      "status": "done",
+      "evidence": "site/index.html written, one look in browser pane; published artifact Kk132vEybKKw5mWNTtPZjT with video + images",
+      "detail": "Static page: what it is, architecture, step-by-step setup for a new user (ring reset, iPhone app, hub, agent), troubleshooting. In open_oura site/ plus a published Artifact."
+    },
+    {
+      "id": "video",
+      "label": "Demo video (HyperFrames)",
+      "layer": "deliver",
+      "status": "done",
+      "evidence": "hyperframes lint 0/0, validate 18 AA, inspect 0 err; 21 snapshots reviewed; render 32.0s h264+aac, peak -3.2 dB; waveform matches cue sheet",
+      "detail": "Short product demo from real captures with music; rendered MP4."
+    }
+  ],
+  "edges": [
+    {
+      "from": "captures",
+      "to": "hub-connect-qr"
+    },
+    {
+      "from": "captures",
+      "to": "ios-deeplink"
+    },
+    {
+      "from": "landing",
+      "to": "hub-install"
+    },
+    {
+      "from": "landing",
+      "to": "ios-install"
+    },
+    {
+      "from": "landing",
+      "to": "captures"
+    },
+    {
+      "from": "video",
+      "to": "captures"
+    }
+  ]
+}

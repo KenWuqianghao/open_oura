@@ -1,0 +1,201 @@
+{
+  "version": 2,
+  "context": {
+    "summary": "Personal-use polish of the open_health iOS app (worktree open_health-redesign, branch feat/ios-redesign). Round 1 baad169 (copy, Advanced sync, launch, skeleton, large text, icon). Round 2 077cda1 (Trends page, 7-day card, score history, report switch in content).",
+    "next": "Nothing pending. Possible later: web dashboard restyle, home-screen widget."
+  },
+  "title": "iOS frontend polish for daily personal use",
+  "kind": "dev",
+  "layers": [
+    {
+      "id": "assets",
+      "name": "Assets & launch",
+      "rank": 0
+    },
+    {
+      "id": "views",
+      "name": "Screens & copy",
+      "rank": 1
+    },
+    {
+      "id": "verify",
+      "name": "Build, check, install",
+      "rank": 2
+    },
+    {
+      "id": "charts",
+      "name": "Chart primitives",
+      "rank": 3
+    },
+    {
+      "id": "trend-views",
+      "name": "Trend screens",
+      "rank": 4
+    },
+    {
+      "id": "verify2",
+      "name": "Round 2 check + phone",
+      "rank": 5
+    }
+  ],
+  "nodes": [
+    {
+      "id": "launch-screen",
+      "label": "Launch screen colour",
+      "layer": "assets",
+      "status": "done",
+      "evidence": "LaunchBackground = F2F2F7 / 000000; build + phone launch",
+      "detail": "LaunchBackground still uses the old warm paper colour, so the app flashes before the grey grouped background. Match systemGroupedBackground in light and dark."
+    },
+    {
+      "id": "app-icon",
+      "label": "App icon refresh",
+      "layer": "assets",
+      "status": "done",
+      "evidence": "draw_app_icon.swift -> 1024 opaque PNG, reviewed; asset compiles",
+      "detail": "Redraw the 1024 icon in the new style: three concentric score rings (readiness teal, sleep indigo, activity orange) on a dark gradient. Generated locally, no external assets."
+    },
+    {
+      "id": "plain-copy",
+      "label": "Plain-language copy",
+      "layer": "views",
+      "status": "done",
+      "evidence": "sim screenshot: Highlights sentence; jargon strings replaced; 37 tests pass",
+      "detail": "Replace developer text: the torch-build note on model-free nights, jargon (RMSSD, MET, PWV, segments, fragmentation /h) and the +0% digest. Keep numbers; explain them in words."
+    },
+    {
+      "id": "advanced-page",
+      "label": "Diagnostics → Advanced",
+      "layer": "views",
+      "status": "done",
+      "evidence": "sim screenshots: sync sheet at medium detent, Advanced page with history/logs/reset",
+      "detail": "Sync sheet keeps status, Sync Now, and the link policy. Logs, crashes, older sessions, copy diagnostics, and reset move into an Advanced page. Settings moves the auth key there too."
+    },
+    {
+      "id": "loading-skeleton",
+      "label": "Loading placeholders",
+      "layer": "views",
+      "status": "done",
+      "evidence": "builds; not seen on screen (pairing cover hides first load in the unpaired sim)",
+      "detail": "First launch shows grey placeholder cards in the Summary layout with a shimmer instead of a bare spinner. Reduce Motion: no shimmer."
+    },
+    {
+      "id": "large-text",
+      "label": "Large text layouts",
+      "layer": "views",
+      "status": "done",
+      "evidence": "sim at accessibility-extra-large: rings as rows, cards stack, no overflow",
+      "detail": "At accessibility text sizes the three-ring row and the two-column vitals grid stack vertically; rings grow with the text."
+    },
+    {
+      "id": "verify-install",
+      "label": "Simulator check + phone",
+      "layer": "verify",
+      "status": "done",
+      "evidence": "37 iOS tests pass; installed + launched on iPhone 15 Pro Max; baad169 pushed",
+      "detail": "Unit tests, screenshots in light, dark and AX sizes, then device build, install, commit, push."
+    },
+    {
+      "id": "report-picker",
+      "label": "Report tab switch in content",
+      "layer": "trend-views",
+      "status": "done",
+      "evidence": "sim screenshot: full-width switch under the date",
+      "detail": "Move the Sleep/Activity segmented control from the toolbar principal slot (clipped by the glass capsule) into the page under the date title, full width."
+    },
+    {
+      "id": "trend-chart",
+      "label": "TrendChart + series",
+      "layer": "charts",
+      "status": "done",
+      "evidence": "sim: bars + lines render, selection, no clipped labels, flat-line span fixed",
+      "detail": "One Swift Charts view for bars or lines over dated values with a date domain, optional reference line, and tap-to-read selection; Summary extension turns scores, nights, activity_daily and vitals into dated series."
+    },
+    {
+      "id": "trends-page",
+      "label": "Trends page",
+      "layer": "trend-views",
+      "status": "done",
+      "evidence": "sim: 7D default, score/sleep/activity/vital cards with phone data",
+      "detail": "Period picker (7D-All); cards for Readiness, Sleep, Activity scores, time in bed with sleep need, steps, active energy, and the four vitals (tap into the vital page)."
+    },
+    {
+      "id": "trends-card",
+      "label": "Summary Trends card",
+      "layer": "trend-views",
+      "status": "done",
+      "evidence": "sim: 3 mini rows + averages; tap on chart opens Trends",
+      "detail": "Last 7 days: one mini bar row per score with the average; opens the Trends page with a zoom."
+    },
+    {
+      "id": "score-history",
+      "label": "Score detail history",
+      "layer": "trend-views",
+      "status": "done",
+      "evidence": "sim: Activity 30-day chart, avg 78 over 3 days",
+      "detail": "ScoreDetailView gains a 30-day chart of that score under the ring."
+    },
+    {
+      "id": "verify-2",
+      "label": "Sim + phone check",
+      "layer": "verify2",
+      "status": "done",
+      "evidence": "37 tests pass; installed + launched on iPhone; 077cda1 pushed",
+      "detail": "Screenshots of report, Trends, score detail; tests; device install; commit and push."
+    }
+  ],
+  "edges": [
+    {
+      "from": "verify-install",
+      "to": "launch-screen"
+    },
+    {
+      "from": "verify-install",
+      "to": "app-icon"
+    },
+    {
+      "from": "verify-install",
+      "to": "plain-copy"
+    },
+    {
+      "from": "verify-install",
+      "to": "advanced-page"
+    },
+    {
+      "from": "verify-install",
+      "to": "loading-skeleton"
+    },
+    {
+      "from": "verify-install",
+      "to": "large-text"
+    },
+    {
+      "from": "trends-page",
+      "to": "trend-chart"
+    },
+    {
+      "from": "trends-card",
+      "to": "trend-chart"
+    },
+    {
+      "from": "score-history",
+      "to": "trend-chart"
+    },
+    {
+      "from": "verify-2",
+      "to": "trends-page"
+    },
+    {
+      "from": "verify-2",
+      "to": "trends-card"
+    },
+    {
+      "from": "verify-2",
+      "to": "score-history"
+    },
+    {
+      "from": "verify-2",
+      "to": "report-picker"
+    }
+  ]
+}
