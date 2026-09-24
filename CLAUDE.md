@@ -4,7 +4,7 @@ Library base for cloud-free access to the Oura ring: the BLE protocol, the event
 decoders, the sync drain, on-ring pairing, SQLite storage, and the ecore-ported metric
 algorithms. **No app code lives here.** The web dashboard, the iOS app (SwiftUI +
 UniFFI `oura-core`), `oura-summary`, and the model runners live in
-https://github.com/Th0rgal/open_health, which consumes these crates as git dependencies.
+https://github.com/KenWuqianghao/open_health, which consumes these crates as git dependencies.
 
 ## Crates (fetch → interpret → apply; see `docs/architecture.md`)
 

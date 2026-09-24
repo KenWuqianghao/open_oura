@@ -18,10 +18,10 @@ your own hub, and let your AI agent read it.
 
 ## Asset audit
 
-- `assets/ios-*.jpg`: simulator, iPhone 17 Pro, iOS 26, app built from open_health
-  `feat/ios-redesign` with the seeded `oura.db` (real ring data, 2 nights).
-- `assets/web-*.jpg`: the hub web UI (`oura-hub` main + Connect page), served by a
-  local hub that the simulator app pushed to. Host shown as
+- `assets/ios-*.jpg`: simulator in dark mode, iPhone 17 Pro, iOS 26, app built from
+  open_health `main` with the seeded `oura.db` (real ring data, 2 nights).
+- `assets/web-*.jpg`: the hub web app (oura-hub `main`, dark), served by a local hub
+  that the simulator app pushed to. Host shown as
   `homeserver.tail-demo.ts.net` (a Chrome host mapping to 127.0.0.1); token `demo…`.
 - Terminal text: the real `deploy/install.sh` output from a Docker run on this Mac,
   with the host name replaced by the demo name and the token masked.
