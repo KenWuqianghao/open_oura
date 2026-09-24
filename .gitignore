@@ -97,3 +97,6 @@ local/libtorch-ios/pytorch/build_ios_device/
 
 # Working plan drafts kept out of the repo (self-declared "not committed").
 PLAN-*.md
+
+# demo video review frames
+site/video/*/snapshots/
