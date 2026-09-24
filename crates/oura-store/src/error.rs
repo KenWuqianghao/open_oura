@@ -10,10 +10,23 @@ pub enum Error {
     /// The database was written by a newer schema than this build understands.
     #[error("database schema {found} is newer than the supported schema {supported}; update the app")]
     SchemaTooNew { found: i64, supported: i64 },
+    #[error("storage error: sqlite={code} extended={extended_code}: {message}")]
+    Sqlite {
+        code: i32,
+        extended_code: i32,
+        message: String,
+    },
 }
 
 impl From<rusqlite::Error> for Error {
     fn from(e: rusqlite::Error) -> Self {
-        Error::Storage(e.to_string())
+        match e {
+            rusqlite::Error::SqliteFailure(code, message) => Error::Sqlite {
+                code: code.extended_code & 0xff,
+                extended_code: code.extended_code,
+                message: message.unwrap_or_else(|| code.to_string()),
+            },
+            other => Error::Storage(other.to_string()),
+        }
     }
 }
