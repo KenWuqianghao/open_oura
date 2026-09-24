@@ -1,11 +1,16 @@
 # open_oura
 
+[![Open Oura: your Oura ring, no account, no cloud](https://open-oura.vercel.app/assets/og.jpg)](https://open-oura.vercel.app)
+
 Reverse-engineering the Oura ring BLE protocol, plus reusable Rust libraries and
 a small independent, **cloud-free** client that reads your data straight from the
 ring.
 
-Looking for the app? The iOS app and web dashboard built on these crates live in
-[open_health](https://github.com/Th0rgal/open_health).
+Looking for the app? The Open Oura iPhone app and web dashboard built on these crates
+live in [open_health](https://github.com/KenWuqianghao/open_health), and the optional
+self-hosted hub in [oura-hub](https://github.com/KenWuqianghao/oura-hub). Setup guide:
+[open-oura.vercel.app](https://open-oura.vercel.app). The protocol work started in
+[Th0rgal/open_oura](https://github.com/Th0rgal/open_oura) by Thomas Marchand.
 
 Tested live against a Ring 3 Horizon and a Ring 5 (pairing, auth, and event sync
 confirmed on both). Designed for Ring 3/4/5, which share the same GATT layout,
@@ -42,6 +47,9 @@ offline. The one genuine cloud-only step is **workout auto-classification**
 - **`tools/`**: Python research bench for protocol exploration (`oura_protocol.py`,
   `oura_realtime_listener.py`).
 - **`docs/`**: protocol and reverse-engineering reference (index below).
+- **`site/`**: the Open Oura landing page, the setup guide, and the demo video project
+  (deployed to [open-oura.vercel.app](https://open-oura.vercel.app); see
+  [`site/README.md`](site/README.md)).
 - **`reverse/`, `captures/`**: local-only, gitignored (decompiled app, raw captures).
 
 ## Quick start (Rust client)

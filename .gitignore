@@ -100,3 +100,6 @@ PLAN-*.md
 
 # demo video review frames
 site/video/*/snapshots/
+
+# Mellos planning maps (local)
+.mellos/
