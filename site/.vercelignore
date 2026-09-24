@@ -1,0 +1,7 @@
+video/*/audio
+video/*/scripts
+video/*/snapshots
+video/*/index.html
+video/*/*.md
+video/*/renders/*.png
+README.md
