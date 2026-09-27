@@ -24,9 +24,22 @@ pub(crate) struct ValidatedHistoryBatch {
     pub rejected_events: u32,
 }
 
+/// History tag of `debug_data` records.
+const DEBUG_DATA_TAG: u8 = 0x61;
+
 impl ValidatedHistoryBatch {
     pub fn progressed(&self, previous_cursor: u32) -> bool {
         !self.events.is_empty() && self.next_cursor > previous_cursor
+    }
+
+    /// True for a batch that holds only `debug_data` records and has nothing left.
+    /// A Gen3 ring (fw 3.4.3) logs two `debug_data` records for each GetEvent
+    /// request. At the end of the log every batch holds only the records of the
+    /// request before it, so "wait for an empty batch" never ends.
+    pub fn only_request_log_left(&self) -> bool {
+        self.bytes_left == 0
+            && !self.events.is_empty()
+            && self.events.iter().all(|e| e.tag == DEBUG_DATA_TAG)
     }
 }
 
