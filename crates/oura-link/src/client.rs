@@ -587,6 +587,9 @@ impl<T: Transport> OuraClient<T> {
             // On the legacy API the next pass is the ack-fetch: it acknowledges this
             // batch and pulls the next one, so no separate acknowledgement is sent.
             // ExtGetEvent is cursor-driven and completes its own batch.
+            if progressed && batch.only_request_log_left() {
+                break; // drained: only the ring's own records of our requests are new
+            }
             if !progressed {
                 if bytes_left == 0 {
                     break; // drained: a pass returned nothing and the ring agrees
@@ -600,7 +603,8 @@ impl<T: Transport> OuraClient<T> {
             // Horizon (fw 3.4.3) reports 0 on the first batch and keeps serving
             // events on the next request, which used to leave a night's data on
             // the ring. Keep pulling until a pass comes back empty; on rings that
-            // report accurately this costs one extra empty round-trip.
+            // report accurately this costs one extra empty round-trip. The one
+            // exception is a batch of only `debug_data` records (handled above).
             if bytes_left == 0 {
                 tracing::debug!(cursor = start, "ring reports drained; confirming with one more pass");
             }
@@ -1017,6 +1021,39 @@ mod tests {
         assert!(get_events[1..].iter().all(|w| w[6] == 0));
         // No second flush once the legacy stream is primed.
         assert_eq!(writes.iter().filter(|w| w.as_slice() == [0x28, 0x01, 0x00]).count(), 1);
+    }
+
+    #[tokio::test]
+    async fn legacy_drain_stops_when_only_the_request_log_is_new() {
+        // Gen3 fw 3.4.3 logs two debug_data records (0x61) for each GetEvent
+        // request, so at the end of the log every ack returns two new records.
+        let mock = MockTransport::new();
+        mock.on("280100", &["290100"]);
+        mock.on("2f0c410000000000000000000010", &["2f020041"]);
+        mock.on("100900000000ffffffffff", &["43050100000041", "11080100000000000300"]);
+        let request_log = [
+            "611002000000 1a18002500000000000000cb",
+            "611103000000 23070000020000020000010000",
+            "11080200000000000300",
+        ]
+        .map(|f| f.replace(' ', ""));
+        mock.on("10090200000000ffffffff", &request_log.each_ref().map(String::as_str));
+        // The ring would answer the next ack the same way, forever.
+        mock.on(
+            "10090400000000ffffffff",
+            &["611004000000 1a18002500000000000000cb".replace(' ', "").as_str(), "11080100000000000300"],
+        );
+        let client = OuraClient::new(mock).with_quiet(Duration::from_millis(20));
+        let outcome = client.drain_events(0, |_| true, |_| true).await.unwrap();
+        assert_eq!(outcome.events_synced, 3);
+        assert_eq!(outcome.next_cursor, 4);
+        let acks_at_4 = client
+            .transport()
+            .writes()
+            .iter()
+            .filter(|w| hex::encode(w) == "10090400000000ffffffff")
+            .count();
+        assert_eq!(acks_at_4, 0);
     }
 
     #[tokio::test]
