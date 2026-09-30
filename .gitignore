@@ -103,3 +103,9 @@ site/video/*/snapshots/
 
 # Mellos planning maps (local)
 .mellos/
+
+# film master render (43 MB); the site uses renders/open-oura-film-web.mp4
+site/video/open-oura-film/renders/open-oura-film.mp4
+
+# film score, rebuilt by scripts/score.py
+site/video/open-oura-film/audio/score.wav

@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/SplitText.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/DrawSVGPlugin.min.js"></script>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.181.2/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.181.2/examples/jsm/"}}</script>
+<style>
+  @font-face { font-family: 'Geist'; src: url('assets/fonts/Geist-var.woff2') format('woff2'); font-weight: 300 700; font-display: block; }
+  @font-face { font-family: 'Geist Mono'; src: url('assets/fonts/GeistMono.woff2') format('woff2'); font-weight: 400 500; font-display: block; }
+  :root {
+    --bg: #05070b; --ink: #f2f4f8; --muted: #8e97a6; --faint: #5d6675;
+    --teal: #19c6d6; --violet: #6e62ff; --amber: #ff9f0a; --heart: #ff4d61; --green: #30d158; --blue: #2f8cff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--bg); color: var(--ink); font-family: 'Geist', sans-serif; -webkit-font-smoothing: antialiased; }
+  .mono { font-family: 'Geist Mono', monospace; }
+  #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: radial-gradient(120% 90% at 50% 60%, #0b111b 0%, var(--bg) 62%); }
+  #gl { position: absolute; inset: 0; width: 1920px; height: 1080px; opacity: 0; }
+  .scene { position: absolute; inset: 0; width: 1920px; height: 1080px; opacity: 0; }
+  .glow-bg { position: absolute; inset: 0; pointer-events: none; }
+  .kicker { font: 500 22px/1 'Geist Mono', monospace; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); }
+  .h { font-weight: 600; letter-spacing: -0.045em; line-height: 0.98; }
+  .phone { position: absolute; width: 400px; height: 870px; border-radius: 64px; padding: 12px; background: linear-gradient(150deg, #3a3f49, #0d1015 42%, #1d222b); box-shadow: 0 0 0 1.5px rgba(255,255,255,0.09), inset 0 1px 0 rgba(255,255,255,0.14), 0 80px 160px -40px rgba(0,0,0,0.95); }
+  .phone img { width: 100%; height: 100%; border-radius: 53px; object-fit: cover; display: block; }
+  .chip { display: inline-flex; align-items: center; gap: 12px; padding: 14px 22px; border-radius: 999px; background: rgba(22,28,38,0.72); border: 1px solid rgba(255,255,255,0.1); font-size: 26px; font-weight: 500; color: var(--ink); backdrop-filter: blur(20px); }
+  .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+
+  /* 1 heartbeat */
+  #s1 svg { position: absolute; left: 0; top: 330px; width: 1920px; height: 420px; overflow: visible; }
+  #s1 .line1 { position: absolute; left: 0; right: 0; top: 760px; text-align: center; font-size: 64px; font-weight: 500; letter-spacing: -0.035em; }
+
+  /* 2 title */
+  #s2 .title { position: absolute; left: 0; right: 0; top: 720px; text-align: center; font-size: 190px; }
+  #s2 .sub { position: absolute; left: 0; right: 0; top: 915px; text-align: center; font-size: 40px; color: var(--muted); letter-spacing: -0.02em; }
+
+  /* 3 hypnogram */
+  #s3 .cap { position: absolute; left: 150px; top: 80px; }
+  #s3 .cap .h { font-size: 60px; margin-top: 18px; }
+  #s3 .lane { position: absolute; left: 110px; font: 500 22px 'Geist Mono', monospace; letter-spacing: 0.14em; text-transform: uppercase; padding: 10px 18px; border-radius: 999px; background: rgba(5,7,11,.86); border: 1px solid rgba(255,255,255,.08); }
+  #s3 .axis { position: absolute; bottom: 120px; left: 0; right: 0; height: 30px; font: 400 22px 'Geist Mono', monospace; color: var(--faint); }
+  #s3 .axis span { position: absolute; top: 0; transform: translateX(-50%); }
+
+  /* 4 phone */
+  #s4 .copy { position: absolute; left: 150px; top: 300px; width: 900px; }
+  #s4 .copy .h { font-size: 96px; margin-top: 26px; }
+  #s4 .copy .row { display: flex; gap: 14px; margin-top: 44px; flex-wrap: wrap; }
+  #s4 .phone { left: 1250px; top: 105px; }
+
+  /* 5 carousel */
+  #s5 .persp { position: absolute; left: 1200px; top: 100px; width: 400px; height: 870px; perspective: 2200px; }
+  #s5 .wheel { position: absolute; inset: 0; transform-style: preserve-3d; }
+  #s5 .wheel .phone { left: 0; top: 0; -webkit-box-reflect: below 18px linear-gradient(transparent 78%, rgba(255,255,255,0.14)); }
+  #s5 .copy { position: absolute; left: 150px; top: 330px; width: 780px; height: 420px; }
+  #s5 .copy .item { position: absolute; left: 0; top: 0; opacity: 0; }
+  #s5 .copy .h { font-size: 84px; margin-top: 24px; }
+  #s5 .copy p { font-size: 32px; color: var(--muted); margin-top: 26px; line-height: 1.35; max-width: 720px; }
+  #s5 .count { position: absolute; left: 150px; top: 820px; display: flex; gap: 12px; }
+  #s5 .count i { width: 46px; height: 5px; border-radius: 3px; background: rgba(255,255,255,0.14); display: block; }
+  #s5 .count i b { display: block; height: 100%; width: 0; border-radius: 3px; background: var(--ink); }
+
+  /* 6 widgets */
+  #s6 .cap { position: absolute; left: 0; right: 0; top: 110px; text-align: center; }
+  #s6 .cap .h { font-size: 86px; margin-top: 22px; }
+  .wmed { position: absolute; left: 610px; top: 430px; width: 700px; height: 330px; border-radius: 48px; background: #232326; box-shadow: 0 60px 120px -30px rgba(0,0,0,0.9), inset 0 0 0 1.5px rgba(255,255,255,0.07); padding: 36px 44px; }
+  .wmed .rings { display: flex; justify-content: space-between; padding: 0 20px; }
+  .wmed .r { text-align: center; }
+  .wmed .r svg { width: 150px; height: 150px; display: block; }
+  .wmed .r .v { position: relative; margin-top: -103px; height: 56px; font-size: 54px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .wmed .r .l { margin-top: 42px; font-size: 26px; color: #9a9aa2; }
+  .wmed .foot { display: flex; justify-content: space-between; margin-top: 18px; font-size: 22px; color: #8d8d95; }
+  .wsmall { position: absolute; left: 230px; top: 470px; width: 290px; height: 290px; border-radius: 44px; overflow: hidden; box-shadow: 0 50px 100px -30px rgba(0,0,0,0.9); }
+  .wsmall img { width: 100%; height: 100%; display: block; }
+  .lock { position: absolute; left: 1420px; top: 340px; width: 300px; height: 652px; border-radius: 50px; padding: 9px; background: linear-gradient(150deg, #3a3f49, #0d1015 42%, #1d222b); box-shadow: 0 60px 120px -30px rgba(0,0,0,0.95); }
+  .lock .scr { width: 100%; height: 100%; border-radius: 42px; overflow: hidden; background: radial-gradient(120% 70% at 30% 20%, #1b3a5c 0%, #0b1320 55%, #06080d 100%); position: relative; text-align: center; }
+  .lock .inl { margin-top: 70px; font-size: 16px; font-weight: 600; color: rgba(255,255,255,0.8); }
+  .lock .time { font-size: 92px; font-weight: 600; letter-spacing: -0.03em; line-height: 1; margin-top: 4px; }
+  .lock .gauge { position: absolute; left: 50%; top: 250px; width: 84px; height: 84px; margin-left: -42px; }
+
+  /* 7 live */
+  #s7 .copy { position: absolute; left: 960px; top: 190px; width: 820px; }
+  #s7 .bpm { display: flex; align-items: baseline; gap: 18px; margin-top: 18px; }
+  #s7 .bpm .n { font-size: 300px; font-weight: 600; letter-spacing: -0.06em; font-variant-numeric: tabular-nums; line-height: 0.9; }
+  #s7 .bpm .u { font-size: 54px; color: var(--muted); font-weight: 500; }
+  #s7 .copy .h { font-size: 58px; margin-top: 30px; }
+  #s7 svg { position: absolute; left: 0; top: 820px; width: 1920px; height: 200px; overflow: visible; }
+
+  /* 8 ring page */
+  #s8 .copy { position: absolute; left: 1000px; top: 170px; width: 800px; }
+  #s8 .big { display: flex; align-items: baseline; gap: 16px; margin-top: 22px; }
+  #s8 .big .n { font-size: 220px; font-weight: 600; letter-spacing: -0.06em; line-height: 0.9; font-variant-numeric: tabular-nums; }
+  #s8 .big .u { font-size: 44px; color: var(--muted); }
+  #s8 .copy .days { font-size: 40px; color: var(--muted); margin-top: 12px; }
+  #s8 .chart { position: absolute; left: 1000px; top: 640px; width: 780px; height: 220px; }
+  #s8 .finder { position: absolute; left: 570px; top: 560px; width: 0; height: 0; }
+  #s8 .finder i { position: absolute; left: -300px; top: -300px; width: 600px; height: 600px; border-radius: 50%; border: 4px solid rgba(100,210,255,0.85); box-shadow: 0 0 40px rgba(100,210,255,0.35), inset 0 0 40px rgba(100,210,255,0.2); opacity: 0; }
+  #s8 .flabel { position: absolute; left: 380px; top: 960px; width: 380px; text-align: center; }
+
+  /* 9 hub + agent */
+  #s9 .copy { position: absolute; left: 150px; top: 190px; width: 640px; }
+  #s9 .copy .h { font-size: 72px; margin-top: 24px; }
+  #s9 .copy p { font-size: 32px; color: var(--muted); margin-top: 26px; line-height: 1.35; }
+  #s9 .persp { position: absolute; left: 900px; top: 150px; width: 900px; perspective: 2000px; }
+  #s9 .win { width: 900px; border-radius: 18px; overflow: hidden; background: #111418; box-shadow: 0 0 0 1px rgba(255,255,255,0.08), 0 80px 160px -40px rgba(0,0,0,0.95); transform-origin: 0% 50%; }
+  #s9 .win .bar { height: 44px; display: flex; align-items: center; gap: 9px; padding: 0 18px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  #s9 .win .bar i { width: 12px; height: 12px; border-radius: 50%; background: #2c323c; display: block; }
+  #s9 .win .bar span { margin-left: 16px; font: 400 17px 'Geist Mono', monospace; color: var(--faint); }
+  #s9 .win img { width: 100%; display: block; }
+  #s9 .term { position: absolute; left: 820px; top: 620px; width: 960px; border-radius: 18px; background: rgba(8,10,14,0.94); border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 60px 120px -30px rgba(0,0,0,0.95); padding: 28px 34px; font: 400 22px/1.6 'Geist Mono', monospace; color: #cfd6df; white-space: pre; }
+  #s9 .term .p { color: var(--green); } #s9 .term .k { color: #7fd7ff; } #s9 .term .v { color: #ffd479; } #s9 .term .c { color: var(--faint); }
+  #s9 .tool { display: inline-block; margin: 6px 0 10px; padding: 6px 14px; border-radius: 999px; background: rgba(100,210,255,0.12); color: #7fd7ff; }
+
+  /* 10 finale */
+  #s10 svg.arcs { position: absolute; left: 460px; top: -60px; width: 1000px; height: 1000px; }
+  #s10 .title { position: absolute; left: 0; right: 0; top: 820px; text-align: center; font-size: 120px; }
+  #s10 .url { position: absolute; left: 0; right: 0; top: 962px; text-align: center; font: 500 30px 'Geist Mono', monospace; color: var(--muted); letter-spacing: 0.04em; }
+
+  /* film grain + vignette on top */
+  #grain { position: absolute; inset: 0; pointer-events: none; opacity: 0.07; mix-blend-mode: overlay; }
+  #vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(130% 110% at 50% 50%, transparent 55%, rgba(0,0,0,0.65) 100%); }
+</style>
+</head>
+<body>
+<div id="stage" data-composition-id="film" data-width="1920" data-height="1080" data-start="0" data-duration="49">
+  <canvas id="gl" width="1920" height="1080"></canvas>
+
+  <!-- 1 · heartbeat -->
+  <div class="scene" id="s1">
+    <svg viewBox="0 0 1920 420" preserveAspectRatio="none" aria-hidden="true">
+      <defs><filter id="glowRed" x="-20%" y="-50%" width="140%" height="200%"><feGaussianBlur stdDeviation="7" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+      <path id="ppg" d="" fill="none" stroke="#ff4d61" stroke-width="4" stroke-linejoin="round" stroke-linecap="round" filter="url(#glowRed)"/>
+    </svg>
+    <div class="line1" id="s1-line">Every night, your ring listens.</div>
+  </div>
+
+  <!-- 2 · title -->
+  <div class="scene" id="s2">
+    <div class="title h" id="s2-title">Open Oura</div>
+    <div class="sub" id="s2-sub">Your Oura ring. No account. No cloud.</div>
+  </div>
+
+  <!-- 3 · one real night -->
+  <div class="scene" id="s3">
+    <div class="cap"><div class="kicker">One real night · 03:53 – 13:21</div><div class="h" id="s3-h">Staged on your phone.</div></div>
+    <div class="lane" id="lane0" style="color:var(--amber)">Awake</div>
+    <div class="lane" id="lane1" style="color:#64d2ff">REM</div>
+    <div class="lane" id="lane2" style="color:var(--blue)">Core</div>
+    <div class="lane" id="lane3" style="color:#8e86ff">Deep</div>
+    <div class="axis"><span>06:00</span><span>08:00</span><span>10:00</span><span>12:00</span></div>
+  </div>
+
+  <!-- 4 · the phone -->
+  <div class="scene" id="s4">
+    <div class="copy" id="s4-copy">
+      <div class="kicker">Computed on the iPhone</div>
+      <div class="h">Readiness. Sleep.<br>Activity.</div>
+      <div class="row">
+        <span class="chip"><span class="dot" style="background:var(--teal)"></span>Readiness 92</span>
+        <span class="chip"><span class="dot" style="background:var(--violet)"></span>Sleep 97</span>
+        <span class="chip"><span class="dot" style="background:var(--amber)"></span>Activity 63</span>
+      </div>
+    </div>
+    <div class="phone" id="s4-phone"><img src="assets/app-home-1.jpg" alt=""></div>
+  </div>
+
+  <!-- 5 · carousel -->
+  <div class="scene" id="s5">
+    <div class="copy">
+      <div class="item" id="c0"><div class="kicker">Insights</div><div class="h">Daytime stress,<br>and how you bounce back.</div><p>Stressed and restored time for the day, a 48-hour timeline, and a resilience level from the last two weeks.</p></div>
+      <div class="item" id="c1"><div class="kicker">Guidance</div><div class="h">Your ideal bedtime.</div><p>A bedtime window from your own nights, plus sleep regularity and your chronotype.</p></div>
+      <div class="item" id="c2"><div class="kicker">Journal</div><div class="h">What your tags do<br>to your nights.</div><p>Tag caffeine, alcohol, a late meal. The app compares the nights after each tag with all the others.</p></div>
+      <div class="item" id="c3"><div class="kicker">Reports</div><div class="h">Every week,<br>in plain words.</div><p>Weekly and monthly averages, totals, and how they moved against the week before.</p></div>
+      <div class="item" id="c4"><div class="kicker">Workouts</div><div class="h">One list for every<br>workout.</div><p>Sessions from the ring, Apple Health, and your own entries, without counting one twice.</p></div>
+    </div>
+    <div class="count"><i><b id="k0"></b></i><i><b id="k1"></b></i><i><b id="k2"></b></i><i><b id="k3"></b></i><i><b id="k4"></b></i></div>
+    <div class="persp"><div class="wheel" id="wheel">
+      <div class="phone" id="w0"><img src="assets/app-stress.jpg" alt=""></div>
+      <div class="phone" id="w1"><img src="assets/app-bedtime.jpg" alt=""></div>
+      <div class="phone" id="w2"><img src="assets/app-insights.jpg" alt=""></div>
+      <div class="phone" id="w3"><img src="assets/app-report.jpg" alt=""></div>
+      <div class="phone" id="w4"><img src="assets/app-workouts.jpg" alt=""></div>
+    </div></div>
+  </div>
+
+  <!-- 6 · widgets -->
+  <div class="scene" id="s6">
+    <div class="cap"><div class="kicker">New · Widgets</div><div class="h">Your scores on the Home and Lock Screen.</div></div>
+    <div class="wsmall" id="s6-small"><img src="assets/widget-small-ref.png" alt=""></div>
+    <div class="wmed" id="s6-med">
+      <div class="rings">
+        <div class="r"><svg viewBox="0 0 150 150"><circle cx="75" cy="75" r="62" fill="none" stroke="#10454a" stroke-width="15"/><circle class="arc" id="a0" cx="75" cy="75" r="62" fill="none" stroke="#12cddc" stroke-width="15" stroke-linecap="round" transform="rotate(-90 75 75)"/></svg><div class="v" id="v0">0</div><div class="l">Readiness</div></div>
+        <div class="r"><svg viewBox="0 0 150 150"><circle cx="75" cy="75" r="62" fill="none" stroke="#2b2660" stroke-width="15"/><circle class="arc" id="a1" cx="75" cy="75" r="62" fill="none" stroke="#6e5bff" stroke-width="15" stroke-linecap="round" transform="rotate(-90 75 75)"/></svg><div class="v" id="v1">0</div><div class="l">Sleep</div></div>
+        <div class="r"><svg viewBox="0 0 150 150"><circle cx="75" cy="75" r="62" fill="none" stroke="#4a3219" stroke-width="15"/><circle class="arc" id="a2" cx="75" cy="75" r="62" fill="none" stroke="#ff9519" stroke-width="15" stroke-linecap="round" transform="rotate(-90 75 75)"/></svg><div class="v" id="v2">0</div><div class="l">Activity</div></div>
+      </div>
+      <div class="foot"><span>Yesterday</span><span class="mono">HRV 47 ms · ring 57%</span></div>
+    </div>
+    <div class="lock" id="s6-lock"><div class="scr">
+      <div class="inl">Readiness 92 · Sleep 97</div>
+      <div class="time">9:41</div>
+      <svg class="gauge" viewBox="0 0 84 84"><circle cx="42" cy="42" r="36" fill="rgba(255,255,255,0.08)"/><circle cx="42" cy="42" r="30" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="6" stroke-dasharray="150 189" stroke-linecap="round" transform="rotate(135 42 42)"/><circle id="lockArc" cx="42" cy="42" r="30" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" transform="rotate(135 42 42)"/><text x="42" y="50" text-anchor="middle" font-family="Geist" font-weight="600" font-size="22" fill="#fff">92</text></svg>
+    </div></div>
+  </div>
+
+  <!-- 7 · live heart rate -->
+  <div class="scene" id="s7">
+    <div class="copy">
+      <div class="kicker" style="color:var(--heart)">New · Live heart rate</div>
+      <div class="bpm"><span class="n" id="bpm">58</span><span class="u">bpm</span></div>
+      <div class="h">Beat by beat, straight from the ring.</div>
+    </div>
+    <svg viewBox="0 0 1920 200" preserveAspectRatio="none" aria-hidden="true"><g id="ecgG"><path id="ecg" d="" fill="none" stroke="#ff4d61" stroke-width="3.5" stroke-linejoin="round" filter="url(#glowRed)"/></g></svg>
+  </div>
+
+  <!-- 8 · ring page -->
+  <div class="scene" id="s8">
+    <div class="finder" id="finder"><i></i><i></i><i></i></div>
+    <div class="flabel"><div class="kicker">Ring finder</div></div>
+    <div class="copy">
+      <div class="kicker">New · The ring page</div>
+      <div class="big"><span class="n" id="batt">0</span><span class="u">%</span></div>
+      <div class="days">About 4 days left, from your own discharge rate.</div>
+    </div>
+    <svg class="chart" viewBox="0 0 780 220" preserveAspectRatio="none" aria-hidden="true">
+      <line x1="0" y1="219" x2="780" y2="219" stroke="rgba(255,255,255,0.12)"/>
+      <path id="battPath" d="M0 30 L150 170 L158 25 L330 175 L338 22 L520 168 L528 28 L700 150 L780 110" fill="none" stroke="#30d158" stroke-width="4" stroke-linejoin="round"/>
+    </svg>
+  </div>
+
+  <!-- 9 · hub + agent -->
+  <div class="scene" id="s9">
+    <div class="copy" id="s9-copy">
+      <div class="kicker">Optional · Your hub</div>
+      <div class="h">Every night on your server. Your agent reads it.</div>
+      <p>One command installs the hub. Scan one QR code to connect the phone. Any MCP client gets your status.</p>
+    </div>
+    <div class="persp"><div class="win" id="s9-win"><div class="bar"><i></i><i></i><i></i><span>your-server.ts.net:8787 / sleep</span></div><img src="assets/hub-sleep.jpg" alt=""></div></div>
+    <div class="term" id="s9-term"><span class="p">$</span> <span id="s9-cmd"></span>
+<span class="tool" id="s9-tool">get_status_now ✓</span>
+<span id="s9-json">{ <span class="k">"last_night"</span>: { <span class="k">"in_bed_h"</span>: <span class="v">9.5</span>, <span class="k">"efficiency_pct"</span>: <span class="v">92.3</span>, <span class="k">"hrv_ms"</span>: <span class="v">74</span> },
+  <span class="k">"freshness"</span>: { <span class="k">"ring_last_sync_age_h"</span>: <span class="v">0.7</span> } }</span></div>
+  </div>
+
+  <!-- 10 · finale -->
+  <div class="scene" id="s10">
+    <svg class="arcs" viewBox="-500 -500 1000 1000" aria-hidden="true">
+      <circle id="f0" cx="0" cy="0" r="330" fill="none" stroke="#19c6d6" stroke-width="10" stroke-linecap="round" transform="rotate(-90)" opacity="0.9"/>
+      <circle id="f1" cx="0" cy="0" r="306" fill="none" stroke="#6e62ff" stroke-width="10" stroke-linecap="round" transform="rotate(-90)" opacity="0.9"/>
+      <circle id="f2" cx="0" cy="0" r="282" fill="none" stroke="#ff9f0a" stroke-width="10" stroke-linecap="round" transform="rotate(-90)" opacity="0.9"/>
+    </svg>
+    <div class="title h" id="s10-title">Open Oura</div>
+    <div class="url" id="s10-url">open-oura.vercel.app · free · open source</div>
+  </div>
+
+  <svg id="grain" width="1920" height="1080" aria-hidden="true"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="4"/></filter><rect width="1920" height="1080" filter="url(#n)"/></svg>
+  <div id="vignette"></div>
+
+  <audio id="music" src="audio/score.wav" data-start="0" data-duration="49" data-track-index="30" data-volume="1"></audio>
+</div>
+
+<script type="module">
+import { createRing, LANES } from './ring3d.js'
+gsap.registerPlugin(SplitText, DrawSVGPlugin)
+window.__timelines = window.__timelines || {}
+const tl = gsap.timeline({ paused: true })
+window.__timelines['film'] = tl
+
+// ── the 3D ring, driven by one state object that the timeline tweens ──
+const ring = createRing(document.getElementById('gl'), { width: 1920, height: 1080, bloom: 1.0 })
+const S = { spin: 0, tilt: 0.42, zoom: 1.8, lift: -0.6, pulse: 0, flow: 0, stream: 0, particles: 0, hue: 0, x: 0, idle: 1, bloom: 1.0, target: [2.4, -0.15, 0.6] }
+const draw = () => ring.renderAt(tl.time() + 3, S)
+tl.eventCallback('onUpdate', draw)
+window.addEventListener('hf-seek', draw)
+
+// Lane labels sit on the projected lanes of the finished hypnogram (scene 3's end state).
+ring.renderAt(14, { ...S, zoom: 1.12, tilt: 1.47, lift: 0.1, flow: 1, particles: 1, idle: 0 })
+;LANES.forEach((y, i) => {
+  const p = ring.project(-3.62, y, 0)
+  document.getElementById('lane' + i).style.top = p.y + 'px'
+})
+// Ticks sit where their hour falls in the night (03:53–13:21), on the same projection.
+;document.querySelectorAll('#s3 .axis span').forEach(el => {
+  const [h, m] = el.textContent.split(':').map(Number)
+  const frac = (h * 60 + m - 233) / 568
+  el.style.left = ring.project((frac - 0.5) * 7.2, LANES[3], 0).x + 'px'
+})
+
+const ease = 'expo.out', show = (id, t, d = 0.5) => tl.fromTo(id, { opacity: 0 }, { opacity: 1, duration: d, ease: 'power2.out' }, t)
+const hide = (id, t, d = 0.45) => tl.to(id, { opacity: 0, duration: d, ease: 'power2.in' }, t)
+
+// ── 1 · heartbeat (0–5) ──
+;(() => {
+  // A PPG-like trace: flat, then five beats with a sharp upstroke and a dicrotic notch.
+  let d = 'M0 210', x = 0
+  const beat = (x0) => `L${x0} 210 L${x0 + 18} 200 L${x0 + 34} 60 L${x0 + 52} 260 L${x0 + 70} 175 L${x0 + 92} 205 L${x0 + 118} 190 L${x0 + 150} 210`
+  for (const bx of [420, 700, 980, 1260, 1540]) d += ' ' + beat(bx)
+  d += ' L1920 210'
+  document.getElementById('ppg').setAttribute('d', d)
+})()
+show('#s1', 0, 0.01)
+tl.fromTo('#ppg', { drawSVG: '0% 0%' }, { drawSVG: '0% 100%', duration: 3.6, ease: 'none' }, 0.2)
+tl.to('#ppg', { drawSVG: '100% 100%', duration: 1.0, ease: 'power2.in' }, 3.9)
+const s1split = SplitText.create('#s1-line', { type: 'chars' })
+tl.fromTo(s1split.chars, { opacity: 0, filter: 'blur(14px)', y: 18 }, { opacity: 1, filter: 'blur(0px)', y: 0, duration: 0.9, stagger: 0.028, ease }, 1.1)
+hide('#s1', 4.6, 0.4)
+
+// ── 2 · the ring and the title (5–10) ──
+tl.to('#gl', { opacity: 1, duration: 1.2, ease: 'power2.out' }, 4.7)
+tl.fromTo(S, { zoom: 1.9, lift: -0.4, particles: 0 }, { zoom: 1.08, lift: 0.62, particles: 0.75, duration: 3.6, ease: 'expo.out' }, 4.8)
+;[5.2, 6.15, 7.1, 8.05, 9.0].forEach(b => { tl.to(S, { pulse: 1, duration: 0.06 }, b); tl.to(S, { pulse: 0.25, duration: 0.5, ease: 'power2.out' }, b + 0.06) })
+show('#s2', 6.0, 0.01)
+const s2split = SplitText.create('#s2-title', { type: 'chars' })
+tl.fromTo(s2split.chars, { transformPerspective: 700, opacity: 0, y: 80, rotateX: -80, filter: 'blur(10px)' }, { opacity: 1, y: 0, rotateX: 0, filter: 'blur(0px)', duration: 1.1, stagger: 0.045, ease }, 6.0)
+tl.fromTo('#s2-sub', { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.9, ease }, 7.0)
+hide('#s2', 9.5, 0.45)
+
+// ── 3 · the portal: particles become one real night (10–15) ──
+tl.to(S, { tilt: 1.47, idle: 0, zoom: 1.12, lift: 0.1, duration: 1.6, ease: 'power3.inOut' }, 9.6)
+tl.to(S, { flow: 1, particles: 1, duration: 2.6, ease: 'power2.inOut' }, 10.4)
+tl.to(S, { bloom: 1.35, duration: 1.2 }, 11.4)
+show('#s3', 11.0, 0.6)
+gsap.set('#s3 .lane', { yPercent: -50 })
+tl.fromTo('#s3 .lane', { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.6, stagger: 0.12, ease }, 12.2)
+hide('#s3', 14.6, 0.4)
+
+// ── 4 · into the phone (15–20) ──
+tl.to(S, { flow: 0, tilt: 0.42, idle: 1, x: -1.6, zoom: 1.35, bloom: 1.0, duration: 1.6, ease: 'power3.inOut' }, 14.7)
+tl.to(S, { stream: 1, duration: 2.2, ease: 'power2.in' }, 15.2)
+show('#s4', 15.3, 0.01)
+tl.fromTo('#s4-phone', { transformPerspective: 1600, opacity: 0, x: 240, rotateY: -28, scale: 0.92, filter: 'brightness(0.2)' }, { opacity: 1, x: 0, rotateY: -8, scale: 1, filter: 'brightness(1)', duration: 1.6, ease }, 15.3)
+tl.to('#s4-phone', { rotateY: 0, duration: 2.9, ease: 'none' }, 16.95)
+tl.fromTo('#s4-copy > *', { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.9, stagger: 0.14, ease }, 16.4)
+tl.fromTo('#s4 .chip', { opacity: 0, scale: 0.7 }, { opacity: 1, scale: 1, duration: 0.6, stagger: 0.1, ease: 'back.out(2.2)' }, 17.3)
+tl.to('#gl', { opacity: 0, duration: 0.6 }, 17.2)
+hide('#s4', 19.6, 0.4)
+
+// ── 5 · carousel (20–27) ──
+show('#s5', 20.0, 0.3)
+const R = 390, N = 5, step = 360 / N
+// Each phone turns about a pivot R pixels behind it, so the five sit on a circle.
+for (let i = 0; i < N; i++) gsap.set('#w' + i, { rotationY: i * step, transformOrigin: `50% 50% ${-R}px` })
+gsap.set('#wheel', { transformOrigin: `50% 50% ${-R}px` })
+tl.fromTo('#wheel', { rotationY: 70, opacity: 0 }, { rotationY: 0, opacity: 1, duration: 1.2, ease }, 20.0)
+const holds = [20.0, 21.35, 22.7, 24.05, 25.4]
+holds.forEach((t0, i) => {
+  if (i > 0) tl.to('#wheel', { rotationY: -i * step, duration: 0.75, ease: 'power3.inOut' }, t0 - 0.35)
+  tl.fromTo('#c' + i, { opacity: 0, y: 34, filter: 'blur(8px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.55, ease }, t0 + (i ? 0.15 : 0.6))
+  if (i < N - 1) tl.to('#c' + i, { opacity: 0, y: -24, filter: 'blur(6px)', duration: 0.3, ease: 'power2.in' }, holds[i + 1] - 0.3)
+  tl.fromTo('#k' + i, { width: '0%' }, { width: '100%', duration: (i < N - 1 ? holds[i + 1] : 26.7) - t0, ease: 'none' }, t0)
+})
+hide('#s5', 26.6, 0.4)
+
+// ── 6 · widgets (27–31.5) ──
+show('#s6', 27.0, 0.01)
+tl.fromTo('#s6 .cap > *', { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.8, stagger: 0.1, ease }, 27.0)
+tl.fromTo('#s6-med', { transformPerspective: 1400, opacity: 0, scale: 0.6, y: 120, rotateX: 40 }, { opacity: 1, scale: 1, y: 0, rotateX: 0, duration: 1.1, ease: 'back.out(1.4)' }, 27.2)
+;[['#a0', '#v0', 92], ['#a1', '#v1', 97], ['#a2', '#v2', 63]].forEach(([a, v, val], i) => {
+  tl.fromTo(a, { drawSVG: '0%' }, { drawSVG: `0% ${val}%`, duration: 1.2, ease: 'power3.out' }, 27.6 + i * 0.12)
+  const o = { n: 0 }, el = document.querySelector(v)
+  tl.fromTo(o, { n: 0 }, { n: val, duration: 1.2, ease: 'power3.out', immediateRender: false, onUpdate: () => { el.textContent = Math.round(o.n) } }, 27.6 + i * 0.12)
+})
+tl.fromTo('#s6-small', { opacity: 0, x: -160, rotate: -10, scale: 0.8 }, { opacity: 1, x: 0, rotate: -4, scale: 1, duration: 1.0, ease: 'back.out(1.6)' }, 28.0)
+tl.fromTo('#s6-lock', { opacity: 0, x: 180, rotate: 8, scale: 0.85 }, { opacity: 1, x: 0, rotate: 4, scale: 1, duration: 1.0, ease: 'back.out(1.6)' }, 28.2)
+tl.fromTo('#lockArc', { drawSVG: '0%' }, { drawSVG: `0% ${0.92 * 79.4}%`, duration: 1.0, ease: 'power3.out' }, 28.8)
+tl.to(['#s6-small', '#s6-lock'], { y: -10, duration: 2.2, ease: 'sine.inOut' }, 29.0)
+hide('#s6', 31.1, 0.4)
+
+// ── 7 · live heart rate (31.5–35.5) ──
+show('#s7', 31.5, 0.01)
+tl.to(S, { x: -2.35, zoom: 1.25, tilt: 0.55, lift: 0.1, particles: 0, flow: 0, stream: 0, idle: 1, hue: 0, bloom: 1.2, duration: 0.01 }, 31.4)
+tl.to('#gl', { opacity: 1, duration: 0.6 }, 31.5)
+tl.fromTo('#s7 .copy > *', { opacity: 0, y: 36 }, { opacity: 1, y: 0, duration: 0.8, stagger: 0.12, ease }, 31.6)
+;(() => {
+  // An ECG strip, 9 beats about 0.94 s apart, scrolled left in real time.
+  let d = 'M0 120'
+  for (let k = 0; k < 11; k++) { const x = 60 + k * 300; d += ` L${x} 120 L${x + 20} 112 L${x + 34} 128 L${x + 46} 20 L${x + 60} 178 L${x + 76} 120 L${x + 130} 104 L${x + 170} 120` }
+  document.getElementById('ecg').setAttribute('d', d)
+})()
+tl.fromTo('#ecg', { drawSVG: '0% 0%' }, { drawSVG: '0% 100%', duration: 3.9, ease: 'none' }, 31.6)
+tl.fromTo('#ecgG', { x: 0 }, { x: -1400, duration: 3.9, ease: 'none' }, 31.6)
+const bpmEl = document.getElementById('bpm'), vals = [58, 59, 59, 60, 61, 61]
+const beats = [31.9, 32.54, 33.18, 33.82, 34.46, 35.1]
+beats.forEach((b, k) => {
+  tl.call(() => { bpmEl.textContent = vals[k] }, null, b)
+  tl.fromTo('#bpm', { scale: 1.06, color: '#ff4d61' }, { scale: 1, color: '#f2f4f8', duration: 0.45, ease: 'power2.out' }, b)
+  tl.to(S, { pulse: 1, duration: 0.05 }, b); tl.to(S, { pulse: 0.15, duration: 0.45, ease: 'power2.out' }, b + 0.05)
+})
+tl.set('#bpm', { transformOrigin: '0% 80%' }, 31.5)
+hide('#s7', 35.1, 0.35)
+tl.to('#gl', { opacity: 0, duration: 0.35 }, 35.1)
+
+// ── 8 · ring page (35.5–39.5) ──
+show('#s8', 35.5, 0.01)
+tl.to(S, { x: -1.55, zoom: 1.05, tilt: 0.42, pulse: 0.5, particles: 0.35, hue: 0.45, bloom: 0.65, duration: 0.01 }, 35.45)
+tl.to('#gl', { opacity: 1, duration: 0.6 }, 35.5)
+tl.fromTo('#s8 .copy > *', { opacity: 0, y: 36 }, { opacity: 1, y: 0, duration: 0.8, stagger: 0.12, ease }, 35.6)
+;(() => { const o = { n: 0 }, el = document.getElementById('batt'); tl.fromTo(o, { n: 0 }, { n: 57, duration: 1.4, ease: 'power3.out', immediateRender: false, onUpdate: () => { el.textContent = Math.round(o.n) } }, 35.8) })()
+tl.fromTo('#battPath', { drawSVG: '0%' }, { drawSVG: '100%', duration: 2.0, ease: 'power2.inOut' }, 36.2)
+tl.set('#finder i', { scale: 0.3, opacity: 0 }, 0)
+gsap.utils.toArray('#finder i').forEach((c, k) => {
+  tl.fromTo(c, { scale: 0.3, opacity: 1 }, { scale: 1.3, opacity: 0, duration: 2.0, ease: 'power2.out', immediateRender: false }, 36.0 + k * 0.6)
+})
+tl.fromTo('.flabel', { opacity: 0 }, { opacity: 1, duration: 0.5 }, 36.4)
+hide('#s8', 39.1, 0.4)
+tl.to('#gl', { opacity: 0, duration: 0.4 }, 39.1)
+
+// ── 9 · hub + agent (39.5–44) ──
+show('#s9', 39.5, 0.01)
+tl.fromTo('#s9-copy > *', { opacity: 0, y: 36 }, { opacity: 1, y: 0, duration: 0.8, stagger: 0.12, ease }, 39.6)
+tl.fromTo('#s9-win', { opacity: 0, rotateY: -38, x: 300 }, { opacity: 1, rotateY: -14, x: 0, duration: 1.4, ease }, 39.7)
+tl.to('#s9-win', { rotateY: -8, duration: 3, ease: 'none' }, 41.1)
+tl.fromTo('#s9-term', { opacity: 0, y: 60 }, { opacity: 1, y: 0, duration: 0.7, ease }, 41.0)
+;(() => { const q = 'claude mcp add --transport http health https://…/mcp/••••', el = document.getElementById('s9-cmd')
+  for (let i = 0; i <= q.length; i++) tl.call(() => { el.textContent = q.slice(0, i) }, null, 41.3 + i * 0.022) })()
+tl.fromTo('#s9-tool', { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.4, ease: 'back.out(2)' }, 42.7)
+tl.fromTo('#s9-json', { opacity: 0 }, { opacity: 1, duration: 0.5 }, 43.0)
+hide('#s9', 43.7, 0.4)
+
+// ── 10 · finale (44–49) ──
+show('#s10', 44.0, 0.01)
+tl.to(S, { x: 0, zoom: 1.2, tilt: 0.42, lift: 0.62, particles: 0.8, pulse: 0.6, hue: 0, idle: 1, flow: 0, stream: 0, bloom: 1.1, duration: 0.01 }, 43.95)
+tl.to('#gl', { opacity: 1, duration: 0.8 }, 44.0)
+tl.fromTo(S, { zoom: 1.6 }, { zoom: 1.3, duration: 4.8, ease: 'power2.out', immediateRender: false }, 44.0)
+;[['#f0', 92], ['#f1', 97], ['#f2', 63]].forEach(([id, v], i) => tl.fromTo(id, { drawSVG: '0%' }, { drawSVG: `0% ${v}%`, duration: 1.6, ease: 'power3.out' }, 44.4 + i * 0.15))
+const s10split = SplitText.create('#s10-title', { type: 'chars' })
+tl.fromTo(s10split.chars, { opacity: 0, y: 50, filter: 'blur(10px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 1.0, stagger: 0.04, ease }, 45.2)
+tl.fromTo('#s10-url', { opacity: 0 }, { opacity: 1, duration: 0.8 }, 46.2)
+tl.to('#stage', { opacity: 0, duration: 0.9, ease: 'power2.in' }, 48.1)
+
+draw()
+</script>
+</body>
+</html>
