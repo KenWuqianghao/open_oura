@@ -1,7 +1,9 @@
 video/*/audio
 video/*/scripts
+video/*/assets
 video/*/snapshots
 video/*/index.html
+video/*/ring3d.js
 video/*/*.md
-video/*/renders/*.png
+video/*/renders/open-oura-film.mp4
 README.md
