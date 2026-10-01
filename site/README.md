@@ -5,7 +5,7 @@ The Open Oura website, live at <https://open-oura.vercel.app>.
 | File | Page |
 | --- | --- |
 | `index.html` | The landing page |
-| `setup.html` | The setup guide (`/setup`): the iPhone app, the ring reset and pairing, the hub, and an MCP agent |
+| `setup.html` | The setup guide (`/setup`): the iPhone app, the ring reset and pairing, the hub, an MCP agent, and Oura's models (with what the app does without them) |
 | `assets/` | Screens from the app (simulator, dark mode) and the hub, and the Open Graph image |
 | `ring3d.js` | The 3D ring (Three.js), shared with the film |
 | `vercel.json` | Clean URLs (`/setup` serves `setup.html`) |

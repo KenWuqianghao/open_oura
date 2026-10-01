@@ -4,205 +4,184 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Open Oura Setup Guide</title>
-<meta name="description" content="Step by step: install Open Oura on your iPhone, reset and pair your Oura ring, run your own hub, and connect an AI agent. An open-source iPhone app syncs the ring over Bluetooth, computes your scores on the phone, and can back up every night to a server you own.">
+<meta name="description" content="Step by step: install Open Oura on your iPhone, reset and pair your Oura ring, run your own hub, connect an AI agent, and add Oura's sleep models if you have them.">
 <meta property="og:title" content="Open Oura: your Oura ring, no account, no cloud">
 <meta property="og:description" content="Open-source iPhone app for Oura Ring 3, 4, and 5. Bluetooth sync, on-phone scores, an optional self-hosted hub, and MCP for your AI agent.">
 <meta property="og:image" content="https://open-oura.vercel.app/assets/og.jpg">
-<meta property="og:url" content="https://open-oura.vercel.app">
+<meta property="og:url" content="https://open-oura.vercel.app/setup">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://open-oura.vercel.app/assets/og.jpg">
-<meta name="theme-color" content="#0a0c10">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 60'%3E%3Ccircle cx='30' cy='30' r='24' fill='none' stroke='%2364d2ff' stroke-width='8' stroke-linecap='round' stroke-dasharray='120 151' transform='rotate(-90 30 30)'/%3E%3C/svg%3E">
+<meta name="theme-color" content="#060a14">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 60'%3E%3Ccircle cx='30' cy='30' r='22' fill='none' stroke='%2364d2ff' stroke-width='9'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..800&display=swap">
 <style>
+/* The setup guide uses the landing page's night: the same type, ink, and rules. */
 :root {
-  --bg: #0a0c10; --bg-2: #0d1016; --panel: #12161d; --sunk: #171c25;
-  --line: rgba(236, 240, 245, 0.08); --line-2: rgba(236, 240, 245, 0.14); --rule: rgba(236, 240, 245, 0.12);
-  --text: #edf0f4; --ink: #edf0f4; --muted: #939cab; --faint: #6b7483;
-  --accent: #64d2ff; --readiness: #3fc6d6; --sleep: #7d7aff; --activity: #ff9f0a; --good: #30d158;
-  --sans: "Geist", "SF Pro Text", -apple-system, "Segoe UI", system-ui, sans-serif;
-  --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --night: #060a14; --code: #0b0f17;
+  --ink: #eef1f6; --muted: #9ba5b6; --faint: #66717f; --rule: rgba(238,241,246,.14);
+  --font: "Archivo", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --mono: ui-monospace, Menlo, monospace;
+  --rem: #64d2ff; --charge: #30d158; --awake: #ff9f0a;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; scroll-padding-top: 80px; }
-body { margin: 0; background: var(--bg); color: var(--text); font: 400 17px/1.65 var(--sans); -webkit-font-smoothing: antialiased; }
+html { scroll-behavior: smooth; scroll-padding-top: 84px; }
+body { margin: 0; background: var(--night); color: var(--ink); font: 400 17px/1.62 var(--font); -webkit-font-smoothing: antialiased; }
 img { max-width: 100%; display: block; }
-a { color: var(--accent); text-underline-offset: 3px; }
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 8px; }
-.shell, .wrap { max-width: 1120px; margin: 0 auto; padding-inline: 28px; }
-@media (max-width: 640px) { .shell, .wrap { padding-inline: 18px; } }
-h1, h2, h3 { margin: 0; font-weight: 600; letter-spacing: -0.035em; text-wrap: balance; }
-h1 { font-size: clamp(40px, 5.4vw, 68px); line-height: 1; letter-spacing: -0.045em; }
-h2 { font-size: clamp(30px, 3.6vw, 44px); line-height: 1.05; }
-h3 { font-size: 22px; letter-spacing: -0.02em; }
-p { margin: 0; max-width: 66ch; }
-code { font-family: var(--mono); font-size: .86em; background: var(--sunk); padding: 2px 6px; border-radius: 6px; color: var(--text); }
-.eyebrow { font: 500 12px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--faint); }
-.nav { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%); background: color-mix(in srgb, var(--bg) 72%, transparent); border-bottom: 1px solid var(--line); }
-.nav .shell { display: flex; align-items: center; gap: 28px; height: 64px; }
-.logo { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 17px; letter-spacing: -0.02em; text-decoration: none; color: var(--text); }
-.logo svg { width: 26px; height: 26px; }
-.nav .links { display: flex; gap: 24px; margin-left: auto; font-size: 14px; }
+a { color: inherit; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+:focus-visible { outline: 2px solid var(--rem); outline-offset: 3px; border-radius: 4px; }
+p, ul, ol, dl, figure { margin: 0; }
+h1, h2, h3 { margin: 0; font-weight: 640; font-stretch: 88%; letter-spacing: -.015em; text-wrap: balance; }
+h1 { font-size: clamp(40px, 5vw, 68px); line-height: 1.02; max-width: 16ch; }
+h2 { font-size: clamp(30px, 3.2vw, 44px); line-height: 1.06; }
+h3 { font-size: 20px; line-height: 1.3; font-stretch: 92%; }
+b { font-weight: 600; color: var(--ink); }
+code { font: 400 .88em var(--mono); color: var(--ink); overflow-wrap: anywhere; }
+.shell { max-width: 1180px; margin: 0 auto; padding-inline: 32px; }
+@media (max-width: 640px) { .shell { padding-inline: 18px; } }
+.muted { color: var(--muted); }
+.small { font-size: 14px; line-height: 1.5; color: var(--faint); }
+
+/* nav, as on the landing page */
+.nav { position: sticky; top: 0; z-index: 30; background: color-mix(in srgb, var(--night) 82%, transparent); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-bottom: 1px solid var(--rule); }
+.nav .shell { display: flex; align-items: center; gap: 30px; height: 64px; }
+.logo { display: flex; align-items: center; gap: 10px; font-weight: 640; font-stretch: 88%; font-size: 19px; text-decoration: none; }
+.logo i { width: 17px; height: 17px; border-radius: 50%; border: 3.5px solid currentColor; display: block; }
+.nav .links { display: flex; gap: 24px; margin-left: auto; font-size: 15px; }
 .nav .links a { color: var(--muted); text-decoration: none; }
-.nav .links a:hover { color: var(--text); }
-@media (max-width: 760px) { .nav .links { display: none; } .nav .shell > .btn { margin-left: auto; } }
-.btn { display: inline-flex; align-items: center; gap: 9px; height: 44px; padding: 0 20px; border-radius: 999px; font: 500 15px/1 var(--sans); text-decoration: none; border: 1px solid var(--line-2); color: var(--text); background: transparent; }
-.btn.small { height: 36px; padding: 0 16px; font-size: 14px; }
-.intro { padding-block: 72px 24px; }
-.intro .lead { font-size: 19px; color: var(--muted); margin-top: 20px; max-width: 58ch; }
-section { padding-block: 64px 8px; }
-.section-head { display: flex; flex-direction: column; gap: 12px; margin-bottom: 28px; }
-.section-head p { color: var(--muted); }
-.needs { display: grid; grid-template-columns: 1.1fr 1fr 1fr; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-.need { padding: 24px 24px 24px 0; }
-.need + .need { padding-left: 24px; border-left: 1px solid var(--line); }
-.need h3 { font-size: 17px; margin-bottom: 10px; }
-.need ul { margin: 0; padding-left: 18px; font-size: 15px; color: var(--muted); }
-.need li + li { margin-top: 6px; }
-.note { margin-top: 18px; font-size: 15px; color: var(--muted); border-left: 2px solid var(--activity); padding: 4px 0 4px 14px; }
-@media (max-width: 860px) { .needs { grid-template-columns: 1fr; } .need + .need { padding-left: 0; border-left: 0; border-top: 1px solid var(--line); } }
-.part { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 48px; padding-block: 48px; border-top: 1px solid var(--line); }
-.part-side { position: sticky; top: 90px; align-self: start; }
-.part-side .ring { width: 48px; height: 48px; }
-.part-side h3 { font-size: 26px; margin-top: 16px; }
-.part-side p { font-size: 15px; color: var(--muted); margin-top: 8px; }
-.part-side .where { font: 500 11px/1.4 var(--mono); color: var(--faint); margin-top: 14px; text-transform: uppercase; letter-spacing: .12em; }
-@media (max-width: 860px) { .part { grid-template-columns: 1fr; gap: 20px; } .part-side { position: static; } }
-.steps { list-style: none; margin: 0; padding: 0; counter-reset: step; display: flex; flex-direction: column; gap: 30px; }
-.steps > li { counter-increment: step; display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 14px; }
-.steps > li::before { content: "0" counter(step); font: 500 13px/2.1 var(--mono); color: var(--faint); }
-.steps h4 { margin: 4px 0 8px; font-size: 19px; font-weight: 600; letter-spacing: -0.015em; }
-.steps p, .steps li li { color: var(--muted); }
-.steps b { color: var(--text); font-weight: 500; }
-.steps p + p, .steps p + .code, .steps .code + p, .steps p + ul, .steps ul + p, .steps .shots + p { margin-top: 12px; }
-.steps ul { margin: 0; padding-left: 18px; }
-.steps ul li + li { margin-top: 6px; }
-.code { position: relative; background: #080a0e; border: 1px solid var(--line); border-radius: 14px; margin-top: 12px; }
-.code pre { margin: 0; padding: 16px 70px 16px 18px; overflow-x: auto; font: 400 13.5px/1.7 var(--mono); color: #cfd6df; white-space: pre; }
-.code .c { color: var(--faint); }
-.code .h { color: #7fd7ff; }
-.copy { position: absolute; top: 10px; right: 10px; border: 1px solid var(--line-2); background: var(--panel); color: var(--muted); font: 500 12px/1 var(--mono); padding: 8px 10px; border-radius: 8px; cursor: pointer; }
-.copy:hover { color: var(--text); }
-.leds { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
-.led { display: flex; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px 8px 10px; font-size: 14px; color: var(--muted) !important; }
-.led i { width: 11px; height: 11px; border-radius: 50%; display: block; flex: none; box-shadow: 0 0 12px currentColor; }
-.led b { font: 500 12px/1 var(--mono); color: var(--text); }
-.shots { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 1fr); gap: 16px; margin-top: 16px; align-items: end; }
-.shots figure { margin: 0; }
-.shots img { width: 100%; border-radius: 12px; border: 1px solid var(--line-2); }
-.shots figcaption { font-size: 13px; color: var(--faint); margin-top: 8px; }
-@media (max-width: 600px) { .shots { grid-template-columns: 1fr; } .shots figure:last-child img { max-width: 240px; } }
-.tools { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
-.tools code { background: transparent; border: 1px solid var(--line-2); padding: 6px 10px; border-radius: 999px; }
-.table-wrap { overflow-x: auto; border-top: 1px solid var(--line); }
-table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 15px; }
-th, td { text-align: left; vertical-align: top; padding: 16px 18px 16px 0; border-bottom: 1px solid var(--line); }
-thead th { font: 500 11px/1.2 var(--mono); text-transform: uppercase; letter-spacing: .12em; color: var(--faint); }
-td { color: var(--muted); } td:first-child { color: var(--text); font-weight: 500; width: 32%; }
-.flows { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-.flow { padding: 24px 24px 24px 0; }
-.flow + .flow { padding-left: 24px; border-left: 1px solid var(--line); }
-.flow .eyebrow { display: block; margin-bottom: 10px; }
-.flow p { font-size: 15px; color: var(--muted); }
-@media (max-width: 860px) { .flows { grid-template-columns: 1fr; } .flow + .flow { padding-left: 0; border-left: 0; border-top: 1px solid var(--line); } }
-footer { border-top: 1px solid var(--line); margin-top: 80px; padding-block: 32px 48px; font-size: 13px; color: var(--faint); }
-footer .shell { display: flex; justify-content: space-between; gap: 16px 32px; flex-wrap: wrap; }
-footer nav { display: flex; gap: 22px; flex-wrap: wrap; }
-footer a { color: var(--muted); text-decoration: none; }
+.nav .links a:hover { color: var(--ink); }
+.btn { display: inline-flex; align-items: center; height: 38px; padding: 0 16px; border-radius: 6px; font: 560 15px/1 var(--font); font-stretch: 95%; text-decoration: none; border: 1px solid var(--rule); }
+.btn:hover { border-color: var(--muted); }
+@media (max-width: 900px) { .nav .links { display: none; } .nav .btn { margin-left: auto; } }
+
+/* intro */
+.intro { padding: clamp(70px, 10vw, 130px) 0 clamp(50px, 7vw, 80px); }
+.intro p { margin-top: 22px; max-width: 58ch; color: var(--muted); font-size: 19px; }
+.parts-index { margin-top: 40px; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-top: 1px solid var(--rule); }
+.parts-index a { padding: 16px 16px 0 0; text-decoration: none; color: var(--muted); font-size: 15px; line-height: 1.35; }
+.parts-index a span { display: block; font-size: 40px; line-height: 1; font-weight: 180; font-stretch: 62%; color: var(--ink); margin-bottom: 6px; }
+.parts-index a:hover { color: var(--ink); }
+@media (max-width: 760px) { .parts-index { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 10px; } }
+
+/* a block: title column on the left, content on the right */
+.block { padding-block: clamp(60px, 8vw, 100px); border-top: 1px solid var(--rule); }
+.block > .shell { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: 28px 72px; }
+.block .side { align-self: start; position: sticky; top: 96px; }
+.block .side p { margin-top: 14px; color: var(--muted); max-width: 32ch; }
+.num { display: block; font-size: clamp(76px, 9vw, 128px); line-height: .8; font-weight: 180; font-stretch: 62%; letter-spacing: -.01em; margin: 0 0 22px -.04em; font-variant-numeric: tabular-nums; }
+@media (max-width: 860px) { .block > .shell { grid-template-columns: 1fr; } .block .side { position: static; } }
+
+/* what you need */
+.needs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px 36px; }
+.needs h3 { font-size: 18px; }
+.needs ul { list-style: none; padding: 0; margin-top: 10px; color: var(--muted); font-size: 16px; }
+.needs li { padding: 7px 0; border-top: 1px solid var(--rule); }
+@media (max-width: 760px) { .needs { grid-template-columns: 1fr; } }
+.aside { margin-top: 32px; padding-left: 18px; border-left: 2px solid var(--awake); color: var(--muted); max-width: 62ch; }
+
+/* steps */
+.steps { list-style: none; padding: 0; counter-reset: s; }
+.steps > li { counter-increment: s; display: grid; grid-template-columns: 48px minmax(0, 1fr); padding: 26px 0; border-top: 1px solid var(--rule); }
+.steps > li:last-child { border-bottom: 1px solid var(--rule); }
+.steps > li::before { content: counter(s); font-size: 34px; line-height: 1; font-weight: 200; font-stretch: 62%; color: var(--muted); }
+.steps p { margin-top: 10px; color: var(--muted); max-width: 64ch; }
+.steps ul { margin-top: 10px; padding-left: 20px; color: var(--muted); max-width: 64ch; }
+.steps ul li { margin-top: 6px; }
+.code { position: relative; margin-top: 14px; background: var(--code); border: 1px solid var(--rule); border-radius: 6px; }
+.code pre { margin: 0; padding: 14px 80px 14px 16px; font: 400 13.5px/1.7 var(--mono); color: #cfd6df; overflow-x: auto; }
+.code .c { color: var(--faint); } .code .h { color: var(--rem); }
+.copy { position: absolute; top: 9px; right: 9px; border: 1px solid var(--rule); background: var(--night); color: var(--muted); border-radius: 4px; font: 500 13px/1 var(--font); padding: 8px 10px; cursor: pointer; }
+.leds { margin-top: 12px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 24px; max-width: 520px; color: var(--muted); font-size: 16px; }
+.leds div { display: flex; align-items: center; gap: 10px; }
+.leds i { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+@media (max-width: 520px) { .leds { grid-template-columns: 1fr; } }
+.shots { display: grid; grid-template-columns: 3fr 1.15fr; gap: 16px; margin-top: 16px; align-items: start; }
+.shots img { border-radius: 6px; border: 1px solid var(--rule); }
+.shots figcaption { margin-top: 8px; }
+@media (max-width: 640px) { .shots { grid-template-columns: 1fr; } }
+
+/* tables */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 16px; }
+th { text-align: left; font-weight: 600; font-stretch: 92%; color: var(--muted); padding: 0 16px 10px 0; border-bottom: 1px solid var(--rule); }
+td { vertical-align: top; padding: 14px 16px 14px 0; border-bottom: 1px solid var(--rule); color: var(--muted); }
+td:first-child { color: var(--ink); width: 34%; }
+.compare td:first-child { width: 22%; }
+.compare td:nth-child(2) { width: 30%; }
+.sub { margin-top: 44px; }
+.sub > p { margin-top: 12px; color: var(--muted); max-width: 64ch; }
+.sub table { margin-top: 20px; }
+
+/* privacy */
+.flows { display: grid; gap: 0; }
+.flows div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2.4fr); gap: 20px; padding: 18px 0; border-top: 1px solid var(--rule); }
+.flows div:last-child { border-bottom: 1px solid var(--rule); }
+.flows dt { font-weight: 600; font-stretch: 92%; }
+.flows dd { margin: 0; color: var(--muted); }
+@media (max-width: 640px) { .flows div { grid-template-columns: 1fr; gap: 4px; } }
+
+footer { padding: 40px 0 56px; color: var(--faint); font-size: 14px; border-top: 1px solid var(--rule); }
+footer .shell { display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+footer nav { display: flex; gap: 20px; flex-wrap: wrap; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 </style>
 </head>
 <body>
-<header class="nav" id="nav">
+<header class="nav">
   <div class="shell">
-    <a class="logo" href="/" aria-label="Open Oura home">
-      <svg viewBox="0 0 60 60" aria-hidden="true">
-        <circle cx="30" cy="30" r="25" fill="none" stroke="#3fc6d6" stroke-width="6" stroke-linecap="round" stroke-dasharray="128 157" transform="rotate(-90 30 30)"/>
-        <circle cx="30" cy="30" r="16.5" fill="none" stroke="#7d7aff" stroke-width="6" stroke-linecap="round" stroke-dasharray="77 104" transform="rotate(-90 30 30)"/>
-        <circle cx="30" cy="30" r="8" fill="none" stroke="#ff9f0a" stroke-width="6" stroke-linecap="round" stroke-dasharray="29 50" transform="rotate(-90 30 30)"/>
-      </svg>
-      Open Oura
-    </a>
-    <nav class="links" aria-label="Sections">
-      <a href="#iphone">iPhone</a>
-      <a href="#ring">Ring</a>
-      <a href="#hub">Hub</a>
-      <a href="#agent">Agent</a><a href="#help">Help</a>
-      <a href="https://github.com/KenWuqianghao/open_health">GitHub</a>
+    <a class="logo" href="/"><i></i>Open Oura</a>
+    <nav class="links" aria-label="Parts">
+      <a href="#app">The app</a><a href="#ring">The ring</a><a href="#hub">Hub</a><a href="#agent">Agent</a><a href="#models">Sleep models</a><a href="#help">Help</a>
     </nav>
-    <a class="btn small" href="/">Overview</a>
+    <a class="btn" href="/">Overview</a>
   </div>
 </header>
-<main class="wrap">
-<div class="intro">
-  <span class="eyebrow">Setup guide</span>
-  <h1 style="margin-top:16px">From a clean Mac to your ring on your iPhone.</h1>
-  <p class="lead">Four parts, in order. The iPhone app is the only required part. The hub and the agent add a backup and remote access. Plan about 30 minutes, most of it for the first build and the ring reset.</p>
+
+<main>
+<div class="intro shell">
+  <h1>Set up Open Oura, from a clean Mac to your ring on your iPhone.</h1>
+  <p>Five parts, in this order. You need only the first two: the app and the ring. The hub, the agent, and Oura's sleep models are optional. Plan about 30 minutes for the first two parts. Most of that time is the first build and the ring reset.</p>
+  <nav class="parts-index" aria-label="The five parts">
+    <a href="#app"><span>1</span>Install the app</a>
+    <a href="#ring"><span>2</span>Free the ring and pair it</a>
+    <a href="#hub"><span>3</span>Run your hub (optional)</a>
+    <a href="#agent"><span>4</span>Connect your agent (optional)</a>
+    <a href="#models"><span>5</span>Add Oura's sleep models (optional)</a>
+  </nav>
 </div>
-<section id="needs">
-  <div class="section-head">
-    <span class="eyebrow">Before you start</span>
-    <h2>What you need</h2>
-    <p>The iPhone app is the only required part. The hub and the agent add a backup and remote access.</p>
-  </div>
-  <div class="needs">
-    <div class="need">
-      <h3>For the iPhone app</h3>
-      <ul>
-        <li>A Mac with Xcode 26 or newer</li>
-        <li>An iPhone with iOS 17 or newer, and its cable</li>
-        <li>An Apple ID. A free one works; the app then runs for 7 days per install.</li>
-      </ul>
-    </div>
-    <div class="need">
-      <h3>For the ring</h3>
-      <ul>
-        <li>An Oura Ring 3, 4, or 5</li>
-        <li>Its charger</li>
-        <li>About 15 minutes for the reset and the first sync</li>
-      </ul>
-    </div>
-    <div class="need">
-      <h3>For the hub (optional)</h3>
-      <ul>
-        <li>A computer that stays on: a Linux server, a Steam Deck, or a Mac</li>
-        <li>Docker or podman on it</li>
-        <li>A free <a href="https://tailscale.com/download">Tailscale</a> account, on the server and the iPhone</li>
-      </ul>
+
+<section class="block" id="needs">
+  <div class="shell">
+    <div class="side"><h2>What you need</h2></div>
+    <div>
+      <div class="needs">
+        <div><h3>For the app</h3><ul><li>A Mac with Xcode 26 or newer</li><li>An iPhone with iOS 17 or newer, and its cable</li><li>An Apple ID. A free one works, and the app then runs for 7 days per install.</li></ul></div>
+        <div><h3>For the ring</h3><ul><li>An Oura Ring 3, 4, or 5</li><li>Its charger</li><li>About 15 minutes for the reset and the first sync</li></ul></div>
+        <div><h3>For the hub</h3><ul><li>A computer that stays on: a Linux server, a Steam Deck, or a Mac</li><li>Docker or podman on it</li><li>A free <a href="https://tailscale.com/download">Tailscale</a> account on the server and the iPhone</li></ul></div>
+      </div>
+      <p class="aside">The official Oura app and Open Oura cannot share one ring. The setup resets the ring, so sync it in the official app one last time before you start.</p>
     </div>
   </div>
-  <p class="note">The official Oura app and Open Oura cannot share one ring. The setup resets the ring, so sync it in the official app one last time before you start.</p>
 </section>
 
-<section id="setup" style="padding-top:40px">
-  <div class="section-head">
-    <span class="eyebrow">Setup</span>
-    <h2>Four parts, in this order</h2>
-  </div>
-
-  <div class="part" id="iphone">
-    <div class="part-side">
-      <svg class="ring" viewBox="0 0 60 60" aria-hidden="true"><circle cx="30" cy="30" r="24" fill="none" stroke="var(--rule)" stroke-width="7"/><circle cx="30" cy="30" r="24" fill="none" stroke="var(--accent)" stroke-width="7" stroke-linecap="round" stroke-dasharray="38 151" transform="rotate(-90 30 30)"/></svg>
-      <h3>Install the app</h3>
-      <p>One script builds the app and puts it on your iPhone.</p>
-      <div class="where">Mac, iPhone, cable · 20 min</div>
-    </div>
+<section class="block" id="app">
+  <div class="shell">
+    <div class="side"><span class="num">1</span><h2>Install the app</h2><p>One script builds the app and puts it on your iPhone. On your Mac, with the iPhone on its cable, about 20 minutes.</p></div>
     <ol class="steps">
       <li><div>
-        <h4>Add your Apple ID to Xcode</h4>
-        <p>Open Xcode → Settings → Accounts, tap <b>+</b>, and sign in with your Apple ID. A free Apple ID works. You can also set up the iPhone of a family member: your Apple ID signs the app, and Xcode adds that iPhone to your Apple team.</p>
+        <h3>Add your Apple ID to Xcode</h3>
+        <p>Open Xcode → Settings → Accounts, click <b>+</b>, and sign in with your Apple ID. A free Apple ID works. You can also set up the iPhone of a family member: your Apple ID signs the app, and Xcode adds that iPhone to your Apple team.</p>
       </div></li>
       <li><div>
-        <h4>Connect the iPhone and trust this Mac</h4>
+        <h3>Connect the iPhone and trust this Mac</h3>
         <p>Connect the iPhone with its cable and unlock it. When the iPhone shows <b>Trust This Computer?</b>, tap <b>Trust</b> and enter the passcode.</p>
         <p>If no prompt comes, unplug the cable, unlock the iPhone, and plug it in again.</p>
       </div></li>
       <li><div>
-        <h4>Turn on Developer Mode</h4>
+        <h3>Turn on Developer Mode</h3>
         <p>The Developer Mode switch shows only after a Mac with Xcode connects to the iPhone once. Do this step after you trust the Mac.</p>
         <ul>
           <li>Keep the iPhone unlocked on the cable. In Xcode, open Window → Devices and Simulators, and wait until the iPhone shows in the list.</li>
@@ -212,7 +191,7 @@ footer a { color: var(--muted); text-decoration: none; }
         </ul>
       </div></li>
       <li><div>
-        <h4>Run the install script</h4>
+        <h3>Run the install script</h3>
         <p>The script installs <code>xcodegen</code> and Rust when they are missing, builds the app, finds your Apple team and your iPhone, then installs and opens the app.</p>
         <div class="code"><pre><span class="h">git clone</span> https://github.com/KenWuqianghao/open_health.git
 <span class="h">cd</span> open_health
@@ -223,31 +202,29 @@ footer a { color: var(--muted); text-decoration: none; }
         <p>With two iPhones connected, pick one by its name or its ID: <code>DEVICE="Ana's iPhone" ./apps/ios/install.sh</code>.</p>
       </div></li>
       <li><div>
-        <h4>Trust the app on the iPhone</h4>
+        <h3>Trust the app on the iPhone</h3>
         <p>The first time, iOS installs the app but does not let it open. On the iPhone, open Settings → General → VPN &amp; Device Management. Tap <b>Apple Development: your Apple ID</b>, then tap <b>Trust</b>. Then open Open Oura from the Home Screen.</p>
         <p>Also turn on Settings → General → Background App Refresh for Open Oura.</p>
       </div></li>
       <li><div>
-        <h4>Renew it every 7 days</h4>
+        <h3>Renew it every 7 days</h3>
         <p>With a free Apple ID, the app stops opening 7 days after the install. Write down the date. Before that day, connect the iPhone, unlock it, and run <code>./apps/ios/install.sh</code> again. Your data stays on the iPhone. With a paid Apple Developer account, one install lasts a year.</p>
       </div></li>
     </ol>
   </div>
+</section>
 
-  <div class="part" id="ring">
-    <div class="part-side">
-      <svg class="ring" viewBox="0 0 60 60" aria-hidden="true"><circle cx="30" cy="30" r="24" fill="none" stroke="var(--rule)" stroke-width="7"/><circle cx="30" cy="30" r="24" fill="none" stroke="var(--readiness)" stroke-width="7" stroke-linecap="round" stroke-dasharray="76 151" transform="rotate(-90 30 30)"/></svg>
-      <h3>Free the ring and pair it</h3>
-      <p>A ring accepts a new key only after a factory reset.</p>
-      <div class="where">Ring, charger, iPhone · 15 min</div>
-    </div>
+<section class="block" id="ring">
+  <div class="shell">
+    <div class="side"><span class="num">2</span><h2>Free the ring and pair it</h2><p>A ring accepts a new key only after a factory reset. With the ring, its charger, and the iPhone, about 15 minutes.</p></div>
     <ol class="steps">
       <li><div>
-        <h4>Sync one last time, then remove the official app</h4>
-        <p>Open the official Oura app and sync one last time. The reset erases all data on the ring that is not synced yet. Then delete the official Oura app from the iPhone. Then open Settings → Bluetooth. If the ring is under “My Devices”, tap its info button and tap <b>Forget This Device</b>. An old pairing makes every connection fail.</p>
+        <h3>Sync one last time, then remove the official app</h3>
+        <p>Open the official Oura app and sync one last time. The reset erases all data on the ring that is not synced yet. Then delete the official Oura app from the iPhone.</p>
+        <p>Open Settings → Bluetooth. If the ring is under “My Devices”, tap its info button and tap <b>Forget This Device</b>. An old pairing makes every connection fail.</p>
       </div></li>
       <li><div>
-        <h4>Reset the ring on its charger</h4>
+        <h3>Reset the ring on its charger</h3>
         <p>This works on the Ring 3 and Ring 4 charging dock, which has no button. You do the reset when you turn the dock over.</p>
         <ul>
           <li>Connect the dock to power. If the ring is on the dock, take it off.</li>
@@ -255,41 +232,38 @@ footer a { color: var(--muted); text-decoration: none; }
           <li>Turn the dock, with the ring on it, over and back until each light shows:</li>
         </ul>
         <div class="leds" role="list">
-          <div class="led" role="listitem" style="color:#2f7bff"><i style="background:#2f7bff"></i>Upside down <b>until blue</b></div>
-          <div class="led" role="listitem" style="color:#ff3b30"><i style="background:#ff3b30"></i>Right side up <b>until red</b></div>
-          <div class="led" role="listitem" style="color:#af52de"><i style="background:#af52de"></i>Upside down <b>until purple</b></div>
-          <div class="led" role="listitem" style="color:#e0a800"><i style="background:#e0a800"></i>Right side up <b>until yellow</b></div>
+          <div role="listitem"><i style="background:#2f7bff"></i>Upside down, until blue</div>
+          <div role="listitem"><i style="background:#ff3b30"></i>Right side up, until red</div>
+          <div role="listitem"><i style="background:#bf5af2"></i>Upside down, until purple</div>
+          <div role="listitem"><i style="background:#ffd60a"></i>Right side up, until yellow</div>
         </div>
         <p>Yellow means that the reset started. After a few minutes the light blinks blue: the reset is done. If a color does not come, take the ring off the dock and start again.</p>
         <p><b>Do not set the ring up in the official app again.</b> That installs Oura's key and locks Open Oura out, and you must do the reset again.</p>
         <p>A Ring 5, or a charging case with a button, needs different steps, and they are not tested with Open Oura yet. Use Oura's factory reset steps for that charger. Then continue here, and do not set the ring up in the official app.</p>
       </div></li>
       <li><div>
-        <h4>Pair in Open Oura</h4>
+        <h3>Pair in Open Oura</h3>
         <p>Put the ring on its charger next to the iPhone. In Open Oura, tap <b>Scan for Rings</b>, tap your ring, and tap <b>Pair</b>. After a reset, the ring can show as <code>Oura &lt;serial&gt;</code>, not as “Oura Ring”. The app makes a key, keeps it in the Keychain, and sends it to the ring. Keep the app open until the first sync ends.</p>
         <p>A Ring 3 drops the link once, about 2 seconds after it gets the key. Keep the app open: it connects again and finishes by itself.</p>
       </div></li>
       <li><div>
-        <h4>Optional: write to Apple Health</h4>
+        <h3>Optional: write to Apple Health</h3>
         <p>Tap the profile icon → Apple Health → <b>Write ring data to Apple Health</b> → <b>Turn On All</b> → <b>Allow</b>. The app writes measured data only: sleep, heart rate, HRV, breathing rate, blood oxygen, steps, and energy.</p>
       </div></li>
     </ol>
   </div>
+</section>
 
-  <div class="part" id="hub">
-    <div class="part-side">
-      <svg class="ring" viewBox="0 0 60 60" aria-hidden="true"><circle cx="30" cy="30" r="24" fill="none" stroke="var(--rule)" stroke-width="7"/><circle cx="30" cy="30" r="24" fill="none" stroke="var(--good)" stroke-width="7" stroke-linecap="round" stroke-dasharray="114 151" transform="rotate(-90 30 30)"/></svg>
-      <h3>Run your hub</h3>
-      <p>Optional. A server that keeps a full copy of your data and serves it to your agent.</p>
-      <div class="where">On your server · 10 min</div>
-    </div>
+<section class="block" id="hub">
+  <div class="shell">
+    <div class="side"><span class="num">3</span><h2>Run your hub</h2><p>Optional. A server that keeps a full copy of your data and serves it to your agent. On your server, about 10 minutes.</p></div>
     <ol class="steps">
       <li><div>
-        <h4>Put the server and the iPhone on one tailnet</h4>
+        <h3>Put the server and the iPhone on one tailnet</h3>
         <p>Install <a href="https://tailscale.com/download">Tailscale</a> on the server and on the iPhone, and sign in to the same account on both. Tailscale encrypts the traffic, and the hub needs no open port.</p>
       </div></li>
       <li><div>
-        <h4>Run the install script on the server</h4>
+        <h3>Run the install script on the server</h3>
         <p>You need Docker or podman. The script makes a secret token, builds the hub, runs it as a service that starts again after a reboot, and prints the addresses.</p>
         <div class="code"><pre><span class="h">git clone</span> https://github.com/KenWuqianghao/oura-hub.git
 <span class="h">cd</span> oura-hub
@@ -298,86 +272,129 @@ footer a { color: var(--muted); text-decoration: none; }
         <p>Use <code>--public</code> only when a hosted agent (claude.ai, Claude Desktop connectors) must reach the hub. Run the script again to update. It keeps the token and the data in <code>~/oura-hub-data</code>.</p>
       </div></li>
       <li><div>
-        <h4>Connect the iPhone with one scan</h4>
+        <h3>Connect the iPhone with one scan</h3>
         <p>Open the <b>Sign in</b> link that the script printed. It opens the hub's <b>Connect</b> page. Point the iPhone Camera at the QR code, tap <b>Open in Open Oura</b>, then tap <b>Connect</b>. The app asks first, so a strange link cannot redirect your data.</p>
         <div class="shots">
-          <figure><img src="assets/hub-connect.jpg" alt="The hub's Connect page with a QR code for the iPhone, the MCP address, and the Claude Code command" loading="lazy"><figcaption>The hub's Connect page. The token stays hidden until you tap Show token.</figcaption></figure>
-          <figure><img src="assets/phone-prompt.jpg" alt="Open Oura asks: Connect to your hub?" loading="lazy"><figcaption>The app asks before it sends data.</figcaption></figure>
+          <figure><img src="assets/hub-connect.jpg" alt="The hub's Connect page with a QR code for the iPhone, the MCP address, and the Claude Code command" loading="lazy"><figcaption class="small">The hub's Connect page. The token stays hidden until you tap Show token.</figcaption></figure>
+          <figure><img src="assets/phone-prompt.jpg" alt="Open Oura asks: Connect to your hub?" loading="lazy"><figcaption class="small">The app asks before it sends data.</figcaption></figure>
         </div>
         <p>From then on, the app sends the new ring data after each sync. To add your Apple Watch, turn on Settings → Health hub → <b>Include Apple Health data</b>.</p>
       </div></li>
     </ol>
   </div>
+</section>
 
-  <div class="part" id="agent">
-    <div class="part-side">
-      <svg class="ring" viewBox="0 0 60 60" aria-hidden="true"><circle cx="30" cy="30" r="24" fill="none" stroke="var(--sleep)" stroke-width="7"/></svg>
-      <h3>Connect your agent</h3>
-      <p>Optional. Your agent reads the hub over MCP.</p>
-      <div class="where">Any computer · 2 min</div>
-    </div>
+<section class="block" id="agent">
+  <div class="shell">
+    <div class="side"><span class="num">4</span><h2>Connect your agent</h2><p>Optional. Your agent reads the hub over MCP. On any computer, about 2 minutes.</p></div>
     <ol class="steps">
       <li><div>
-        <h4>Add the hub to your agent</h4>
-        <p>Copy the MCP address from the Connect page. Claude Code:</p>
+        <h3>Add the hub to your agent</h3>
+        <p>Copy the MCP address from the Connect page. For Claude Code:</p>
         <div class="code"><pre><span class="h">claude mcp add</span> --transport http health http://&lt;server&gt;.&lt;tailnet&gt;.ts.net:8787/mcp/&lt;token&gt;</pre><button class="copy" type="button">Copy</button></div>
         <p>Cursor and other clients take an <code>mcpServers</code> entry. The Connect page shows it with a copy button. For Claude Desktop or claude.ai, run the hub with <code>--public</code>, then open Settings → Connectors → <b>Add custom connector</b> and paste the <code>https://</code> MCP address.</p>
       </div></li>
       <li><div>
-        <h4>Ask</h4>
-        <p>Try: “Call get_status_now and plan my day.” The agent gets last night's sleep, HRV and resting heart rate against your baseline, today's activity, and the age of the data. The tools:</p>
-        <div class="tools"><code>get_status_now</code><code>get_sleep</code><code>get_trends</code><code>get_activity</code><code>get_watch</code><code>get_health_samples</code></div>
+        <h3>Ask</h3>
+        <p>Try: “Call get_status_now and plan my day.” The agent gets last night's sleep, HRV and resting heart rate against your baseline, today's activity, and the age of the data. The tools are <code>get_status_now</code>, <code>get_sleep</code>, <code>get_trends</code>, <code>get_activity</code>, <code>get_watch</code>, and <code>get_health_samples</code>.</p>
       </div></li>
     </ol>
   </div>
 </section>
 
-<section id="help">
-  <div class="section-head">
-    <span class="eyebrow">Troubleshooting</span>
-    <h2>When something does not work</h2>
-  </div>
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>What you see</th><th>What to do</th></tr></thead>
-      <tbody>
-        <tr><td>“No iPhone found” from the install script</td><td>Connect the cable, unlock the iPhone, and tap Trust. Then turn on Developer Mode. Run <code>./apps/ios/install.sh --check</code> again.</td></tr>
-        <tr><td>No “Trust This Computer?” prompt, or “Failed to authenticate the user to complete the pairing”</td><td>Nobody confirmed the prompt on the iPhone. Unlock the iPhone, unplug the cable, and plug it in again. Tap Trust and enter the passcode.</td></tr>
-        <tr><td>No Developer Mode switch in Settings</td><td>The switch shows only after Xcode connects to the iPhone. Keep it unlocked on the cable and open Xcode → Window → Devices and Simulators. Then close Settings fully and open it again.</td></tr>
-        <tr><td>The install stops while the iPhone is locked</td><td>Unlock the iPhone, keep the screen on, and run <code>./apps/ios/install.sh</code> again.</td></tr>
-        <tr><td>Auto-Lock is grey and cannot be changed</td><td>Low Power Mode is on. Touch the screen from time to time during the install, or turn off Low Power Mode.</td></tr>
-        <tr><td>“Untrusted Developer” when you open the app</td><td>Settings → General → VPN &amp; Device Management → Apple Development: your Apple ID → Trust.</td></tr>
-        <tr><td>“No Apple team found”</td><td>Open Xcode → Settings → Accounts and add your Apple ID. Or set <code>TEAM_ID=ABCDE12345</code>.</td></tr>
-        <tr><td>The app does not open after a week</td><td>A free Apple ID install stops after 7 days. Connect and unlock the iPhone, and run <code>./apps/ios/install.sh</code> again. Your data stays on the iPhone.</td></tr>
-        <tr><td>“Peer removed pairing information”</td><td>The iPhone still has the old pairing. Settings → Bluetooth → the ring → Forget This Device.</td></tr>
-        <tr><td>“Reset needed”</td><td>The ring has another key, for example after a setup in the official app. Reset the ring on its charger again.</td></tr>
-        <tr><td>“No ring found” or a timeout</td><td>Put the ring on its charger next to the iPhone. The ring's radio is weak.</td></tr>
-        <tr><td>The Connect page says “This is the server's own address”</td><td>Open the page at the address that the phone uses, for example <code>http://server.tailnet.ts.net:8787</code>, or type that address into the field.</td></tr>
-        <tr><td>The iPhone cannot reach the hub</td><td>Turn on Tailscale on the iPhone. The app accepts plain <code>http://</code> only for <code>*.ts.net</code> names; use <code>https://</code> for any other name.</td></tr>
-        <tr><td>The hub does not answer after a reboot</td><td>Run <code>./deploy/install.sh</code> again. Read the logs with <code>docker logs oura-hub</code> or <code>journalctl --user -u oura-hub</code>.</td></tr>
-      </tbody>
-    </table>
+<section class="block" id="models">
+  <div class="shell">
+    <div class="side"><span class="num">5</span><h2>Add Oura's sleep models</h2><p>Optional. Oura's own on-device models, from your own copy of the official app. On your Mac, a few hours the first time.</p></div>
+    <div>
+      <p class="muted" style="max-width:64ch">The official app computes some results with PyTorch models that run on the phone: the sleep stages, cardiovascular age, workout detection, the Ring 5 step decoder, and the illness check. These model files are Oura's property. They are not in these repositories, and you must supply your own.</p>
+      <p class="aside" style="border-left-color:var(--rem)">This part follows Thomas Marchand's work in <a href="https://github.com/Th0rgal/open_health">open_health</a>. His <a href="https://github.com/Th0rgal/open_health/blob/main/docs/algorithms/sleepnet.md">sleepnet.md</a> found how the official app encrypts the model files and where the key comes from. His <a href="https://github.com/Th0rgal/open_health/blob/main/docs/model-runners.md">model-runners.md</a> runs the models on synced ring data. The iOS build of the models is in the <a href="https://github.com/KenWuqianghao/open_health/tree/main/apps/ios#optional-the-on-device-models">iOS README</a>.</p>
+      <ol class="steps" style="margin-top:32px">
+        <li><div>
+          <h3>Get the model files from your own copy of the official app</h3>
+          <p>The official Android app ships the models as encrypted <code>.pt.enc</code> files. Oura's servers send the key to the app after you sign in, so you need the official app on your own phone and your own Oura account. Read <a href="https://github.com/Th0rgal/open_health/blob/main/docs/algorithms/sleepnet.md">sleepnet.md</a> for the file format.</p>
+          <p>Put the decrypted <code>.pt</code> files in <code>notes/models/</code> in your open_health folder. Git ignores that folder, so the files never go into the repository.</p>
+        </div></li>
+        <li><div>
+          <h3>Export the files that the app bundles</h3>
+          <div class="code"><pre>python3 tools/export_mobile.py   <span class="c"># writes notes/models/mobile/*.ptl</span></pre><button class="copy" type="button">Copy</button></div>
+          <p>It exports the five versions that the iPhone app runs: <code>sleepnet_moonstone_1_2_0</code>, <code>cva_2_1_5</code>, <code>automatic_activity_detection_3_1_12</code>, <code>steps_motion_decoder_2_0_0</code>, and <code>illness_detection_0_5_1</code>.</p>
+        </div></li>
+        <li><div>
+          <h3>Build PyTorch for iOS once</h3>
+          <p>This compiles PyTorch from source. It takes about an hour and 8 GB of disk for each slice. The device slice is enough for an iPhone.</p>
+          <div class="code"><pre>./apps/ios/spike/build_libtorch_ios.sh device
+./apps/ios/package-libtorch-xcframeworks.sh</pre><button class="copy" type="button">Copy</button></div>
+        </div></li>
+        <li><div>
+          <h3>Install the build with the models</h3>
+          <div class="code"><pre>TORCH=1 ./apps/ios/install.sh</pre><button class="copy" type="button">Copy</button></div>
+          <p>The app is now about 110 MB. It stages each night with Oura's model, and writes the stages and workouts to Apple Health too.</p>
+        </div></li>
+      </ol>
+
+      <div class="sub">
+        <h3>If you cannot get the model files</h3>
+        <p>Skip this part. The app works without the models, and it uses its own methods for the same results. These methods are simpler than Oura's models.</p>
+        <div class="table-wrap"><table class="compare">
+          <thead><tr><th>Result</th><th>With Oura's models</th><th>Without them</th></tr></thead>
+          <tbody>
+            <tr><td>Sleep stages</td><td>Oura's sleep model, from heart rate, movement, and temperature</td><td>The ring's own stages. The ring computes a hypnogram itself and sends it with the night, in 30-second steps. This is confirmed on a Ring 3. If a ring does not send them, the night shows its signals (heart rate, HRV, temperature, blood oxygen, and movement) and no stages.</td></tr>
+            <tr><td>Workouts</td><td>Oura's activity model detects them and their type</td><td>A rule finds them: 15 minutes or more at a moderate activity level (3 MET or more). These workouts have no type. Workouts from Apple Health (for example, an Apple Watch) and your own entries go into the same list.</td></tr>
+            <tr><td>Symptom Radar</td><td>Oura's illness model</td><td>A rule check: it flags nights when temperature, HRV, and resting heart rate move away from your baseline together.</td></tr>
+            <tr><td>Steps on a Ring 5</td><td>Oura's step decoder</td><td>An estimate from the ring's activity level (MET).</td></tr>
+            <tr><td>Cardiovascular age</td><td>Oura's model</td><td>Not available.</td></tr>
+            <tr><td>Everything else</td><td colspan="2">The same in both builds: the scores, HRV, resting heart rate, blood oxygen, temperature, stress, the bedtime window, the journal, reports, live heart rate, widgets, and the hub.</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </div>
   </div>
 </section>
 
-<section id="privacy">
-  <div class="section-head">
-    <span class="eyebrow">Privacy</span>
-    <h2>Where your data goes</h2>
+<section class="block" id="help">
+  <div class="shell">
+    <div class="side"><h2>When something does not work</h2></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>What you see</th><th>What to do</th></tr></thead>
+        <tbody>
+          <tr><td>“No iPhone found” from the install script</td><td>Connect the cable, unlock the iPhone, and tap Trust. Then turn on Developer Mode. Run <code>./apps/ios/install.sh --check</code> again.</td></tr>
+          <tr><td>No “Trust This Computer?” prompt, or “Failed to authenticate the user to complete the pairing”</td><td>Nobody confirmed the prompt on the iPhone. Unlock the iPhone, unplug the cable, and plug it in again. Tap Trust and enter the passcode.</td></tr>
+          <tr><td>No Developer Mode switch in Settings</td><td>The switch shows only after Xcode connects to the iPhone. Keep it unlocked on the cable and open Xcode → Window → Devices and Simulators. Then close Settings fully and open it again.</td></tr>
+          <tr><td>The install stops while the iPhone is locked</td><td>Unlock the iPhone, keep the screen on, and run <code>./apps/ios/install.sh</code> again.</td></tr>
+          <tr><td>Auto-Lock is grey and cannot be changed</td><td>Low Power Mode is on. Touch the screen from time to time during the install, or turn off Low Power Mode.</td></tr>
+          <tr><td>“Untrusted Developer” when you open the app</td><td>Settings → General → VPN &amp; Device Management → Apple Development: your Apple ID → Trust.</td></tr>
+          <tr><td>“No Apple team found”</td><td>Open Xcode → Settings → Accounts and add your Apple ID. Or set <code>TEAM_ID=ABCDE12345</code>.</td></tr>
+          <tr><td>The app does not open after a week</td><td>A free Apple ID install stops after 7 days. Connect and unlock the iPhone, and run <code>./apps/ios/install.sh</code> again. Your data stays on the iPhone.</td></tr>
+          <tr><td>“Peer removed pairing information”</td><td>The iPhone still has the old pairing. Settings → Bluetooth → the ring → Forget This Device.</td></tr>
+          <tr><td>“Reset needed”</td><td>The ring has another key, for example after a setup in the official app. Reset the ring on its charger again.</td></tr>
+          <tr><td>“No ring found” or a timeout</td><td>Put the ring on its charger next to the iPhone. The ring's radio is weak.</td></tr>
+          <tr><td>A night has no sleep stages</td><td>Without Oura's models, the stages come from the ring itself, and not every ring sends them. See <a href="#models">part 5</a>.</td></tr>
+          <tr><td>The Connect page says “This is the server's own address”</td><td>Open the page at the address that the phone uses, for example <code>http://server.tailnet.ts.net:8787</code>, or type that address into the field.</td></tr>
+          <tr><td>The iPhone cannot reach the hub</td><td>Turn on Tailscale on the iPhone. The app accepts plain <code>http://</code> only for <code>*.ts.net</code> names; use <code>https://</code> for any other name.</td></tr>
+          <tr><td>The hub does not answer after a reboot</td><td>Run <code>./deploy/install.sh</code> again. Read the logs with <code>docker logs oura-hub</code> or <code>journalctl --user -u oura-hub</code>.</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
-  <div class="flows">
-    <div class="flow"><span class="eyebrow" style="color:var(--readiness)">Ring → iPhone</span><p>Bluetooth only. The key is made on the iPhone and kept in its Keychain. No Oura account, no Oura server.</p></div>
-    <div class="flow"><span class="eyebrow" style="color:var(--good)">iPhone → hub</span><p>Only when you connect a hub. The data goes to your server with your token, inside your tailnet or over HTTPS.</p></div>
-    <div class="flow"><span class="eyebrow" style="color:var(--sleep)">Hub → agent</span><p>Only to agents that have your token. The token is the key to your data: keep it secret. To change it, delete <code>~/.config/oura-hub.env</code> and run the install script again.</p></div>
-  </div>
-  <p class="note" style="border-left-color:var(--sleep)">Sleep stages, cardiovascular age, and workout detection use Oura's own on-device models. They are Oura's property and are not in these repositories. Without them the app still syncs and shows heart rate, HRV, blood oxygen, steps, energy, and time in bed. The iOS guide explains how to add them from your own copy of the official app.</p>
 </section>
 
+<section class="block" id="privacy">
+  <div class="shell">
+    <div class="side"><h2>Where your data goes</h2></div>
+    <dl class="flows">
+      <div><dt>Ring to iPhone</dt><dd>Bluetooth only. The key is made on the iPhone and kept in its Keychain. There is no Oura account and no Oura server.</dd></div>
+      <div><dt>iPhone to hub</dt><dd>Only when you connect a hub. The data goes to your server with your token, inside your tailnet or over HTTPS.</dd></div>
+      <div><dt>Hub to agent</dt><dd>Only to agents that have your token. The token is the key to your data, so keep it secret. To change it, delete <code>~/.config/oura-hub.env</code> and run the install script again.</dd></div>
+    </dl>
+  </div>
+</section>
 </main>
+
 <footer>
   <div class="shell">
     <span>Open Oura is independent and is not affiliated with Oura Health Oy. Oura is a trademark of Oura Health Oy. MIT license.</span>
-    <nav aria-label="Repositories"><a href="https://github.com/KenWuqianghao/open_health">open_health</a><a href="https://github.com/KenWuqianghao/oura-hub">oura-hub</a><a href="https://github.com/Th0rgal/open_oura">open_oura</a><a href="/setup">Setup guide</a></nav>
+    <nav aria-label="Repositories"><a href="https://github.com/KenWuqianghao/open_health">open_health</a><a href="https://github.com/KenWuqianghao/oura-hub">oura-hub</a><a href="https://github.com/Th0rgal/open_oura">open_oura</a><a href="/">Overview</a></nav>
   </div>
 </footer>
 <script>
