@@ -189,15 +189,26 @@ footer a { color: var(--muted); text-decoration: none; }
       <svg class="ring" viewBox="0 0 60 60" aria-hidden="true"><circle cx="30" cy="30" r="24" fill="none" stroke="var(--rule)" stroke-width="7"/><circle cx="30" cy="30" r="24" fill="none" stroke="var(--accent)" stroke-width="7" stroke-linecap="round" stroke-dasharray="38 151" transform="rotate(-90 30 30)"/></svg>
       <h3>Install the app</h3>
       <p>One script builds the app and puts it on your iPhone.</p>
-      <div class="where">On your Mac · 15 min</div>
+      <div class="where">Mac, iPhone, cable · 20 min</div>
     </div>
     <ol class="steps">
       <li><div>
-        <h4>Prepare the iPhone and Xcode</h4>
+        <h4>Add your Apple ID to Xcode</h4>
+        <p>Open Xcode → Settings → Accounts, tap <b>+</b>, and sign in with your Apple ID. A free Apple ID works. You can also set up the iPhone of a family member: your Apple ID signs the app, and Xcode adds that iPhone to your Apple team.</p>
+      </div></li>
+      <li><div>
+        <h4>Connect the iPhone and trust this Mac</h4>
+        <p>Connect the iPhone with its cable and unlock it. When the iPhone shows <b>Trust This Computer?</b>, tap <b>Trust</b> and enter the passcode.</p>
+        <p>If no prompt comes, unplug the cable, unlock the iPhone, and plug it in again.</p>
+      </div></li>
+      <li><div>
+        <h4>Turn on Developer Mode</h4>
+        <p>The Developer Mode switch shows only after a Mac with Xcode connects to the iPhone once. Do this step after you trust the Mac.</p>
         <ul>
-          <li>On the iPhone: Settings → Privacy &amp; Security → Developer Mode → on. The phone restarts.</li>
-          <li>In Xcode: Settings → Accounts → add your Apple ID.</li>
-          <li>Connect the iPhone with the cable, unlock it, and tap <b>Trust</b>.</li>
+          <li>Keep the iPhone unlocked on the cable. In Xcode, open Window → Devices and Simulators, and wait until the iPhone shows in the list.</li>
+          <li>On the iPhone, close Settings fully: swipe it away in the app switcher.</li>
+          <li>Open Settings → Privacy &amp; Security. Scroll to the Security section at the bottom. Turn on <b>Developer Mode</b> and tap <b>Restart</b>.</li>
+          <li>After the restart, unlock the iPhone. Tap <b>Turn On</b> in the alert and enter the passcode.</li>
         </ul>
       </div></li>
       <li><div>
@@ -207,12 +218,18 @@ footer a { color: var(--muted); text-decoration: none; }
 <span class="h">cd</span> open_health
 ./apps/ios/install.sh --check   <span class="c"># checks the tools, the team, and the iPhone</span>
 ./apps/ios/install.sh</pre><button class="copy" type="button">Copy</button></div>
-        <p>The first build takes about 10 minutes. With two iPhones connected, pick one: <code>DEVICE="Ana's iPhone" ./apps/ios/install.sh</code>.</p>
+        <p>The first build takes about 10 minutes. <b>Keep the iPhone unlocked, with the screen on, until the app opens.</b> The Mac must load developer files onto the iPhone, and iOS allows this only while the iPhone is unlocked.</p>
+        <p>If Settings → Display &amp; Brightness → Auto-Lock is grey, Low Power Mode is on. Touch the screen from time to time, or turn off Low Power Mode and set Auto-Lock to Never.</p>
+        <p>With two iPhones connected, pick one by its name or its ID: <code>DEVICE="Ana's iPhone" ./apps/ios/install.sh</code>.</p>
       </div></li>
       <li><div>
         <h4>Trust the app on the iPhone</h4>
-        <p>iOS blocks the first launch. Open Settings → General → VPN &amp; Device Management, tap your Apple ID, and tap <b>Trust</b>. Then open Open Oura.</p>
+        <p>The first time, iOS installs the app but does not let it open. On the iPhone, open Settings → General → VPN &amp; Device Management. Tap <b>Apple Development: your Apple ID</b>, then tap <b>Trust</b>. Then open Open Oura from the Home Screen.</p>
         <p>Also turn on Settings → General → Background App Refresh for Open Oura.</p>
+      </div></li>
+      <li><div>
+        <h4>Renew it every 7 days</h4>
+        <p>With a free Apple ID, the app stops opening 7 days after the install. Write down the date. Before that day, connect the iPhone, unlock it, and run <code>./apps/ios/install.sh</code> again. Your data stays on the iPhone. With a paid Apple Developer account, one install lasts a year.</p>
       </div></li>
     </ol>
   </div>
@@ -226,24 +243,31 @@ footer a { color: var(--muted); text-decoration: none; }
     </div>
     <ol class="steps">
       <li><div>
-        <h4>Remove the official app</h4>
-        <p>Delete the official Oura app from the iPhone. Then open Settings → Bluetooth. If the ring is under “My Devices”, tap its info button and tap <b>Forget This Device</b>. An old pairing makes every connection fail.</p>
+        <h4>Sync one last time, then remove the official app</h4>
+        <p>Open the official Oura app and sync one last time. The reset erases all data on the ring that is not synced yet. Then delete the official Oura app from the iPhone. Then open Settings → Bluetooth. If the ring is under “My Devices”, tap its info button and tap <b>Forget This Device</b>. An old pairing makes every connection fail.</p>
       </div></li>
       <li><div>
         <h4>Reset the ring on its charger</h4>
-        <p>This works on the Gen3 and Ring 4 dock, with no button. Take the ring off the charger, put it back, and wait about 2 seconds. Then flip the charger, with the ring on it, until each light shows:</p>
+        <p>This works on the Ring 3 and Ring 4 charging dock, which has no button. You do the reset when you turn the dock over.</p>
+        <ul>
+          <li>Connect the dock to power. If the ring is on the dock, take it off.</li>
+          <li>Put the ring on the dock and wait about 2 seconds. Do not wait longer.</li>
+          <li>Turn the dock, with the ring on it, over and back until each light shows:</li>
+        </ul>
         <div class="leds" role="list">
           <div class="led" role="listitem" style="color:#2f7bff"><i style="background:#2f7bff"></i>Upside down <b>until blue</b></div>
           <div class="led" role="listitem" style="color:#ff3b30"><i style="background:#ff3b30"></i>Right side up <b>until red</b></div>
           <div class="led" role="listitem" style="color:#af52de"><i style="background:#af52de"></i>Upside down <b>until purple</b></div>
           <div class="led" role="listitem" style="color:#e0a800"><i style="background:#e0a800"></i>Right side up <b>until yellow</b></div>
         </div>
-        <p>Yellow means that the reset started. After a few minutes the light blinks blue: the reset is done. Do not set the ring up in the official app again. That installs Oura's key and locks Open Oura out.</p>
+        <p>Yellow means that the reset started. After a few minutes the light blinks blue: the reset is done. If a color does not come, take the ring off the dock and start again.</p>
+        <p><b>Do not set the ring up in the official app again.</b> That installs Oura's key and locks Open Oura out, and you must do the reset again.</p>
+        <p>A Ring 5, or a charging case with a button, needs different steps, and they are not tested with Open Oura yet. Use Oura's factory reset steps for that charger. Then continue here, and do not set the ring up in the official app.</p>
       </div></li>
       <li><div>
         <h4>Pair in Open Oura</h4>
-        <p>Put the ring on its charger next to the iPhone. In Open Oura, tap <b>Scan for Rings</b>, tap your ring, and tap <b>Pair</b>. The app makes a key, keeps it in the Keychain, and sends it to the ring. Keep the app open until the first sync ends.</p>
-        <p>A Ring 3 drops the link once, about 2 seconds after it gets the key. The app connects again and finishes by itself.</p>
+        <p>Put the ring on its charger next to the iPhone. In Open Oura, tap <b>Scan for Rings</b>, tap your ring, and tap <b>Pair</b>. After a reset, the ring can show as <code>Oura &lt;serial&gt;</code>, not as “Oura Ring”. The app makes a key, keeps it in the Keychain, and sends it to the ring. Keep the app open until the first sync ends.</p>
+        <p>A Ring 3 drops the link once, about 2 seconds after it gets the key. Keep the app open: it connects again and finishes by itself.</p>
       </div></li>
       <li><div>
         <h4>Optional: write to Apple Health</h4>
@@ -317,11 +341,16 @@ footer a { color: var(--muted); text-decoration: none; }
     <table>
       <thead><tr><th>What you see</th><th>What to do</th></tr></thead>
       <tbody>
-        <tr><td>“No iPhone found” from the install script</td><td>Connect the cable, unlock the phone, and tap Trust. Turn on Developer Mode. Run <code>./apps/ios/install.sh --check</code> again.</td></tr>
+        <tr><td>“No iPhone found” from the install script</td><td>Connect the cable, unlock the iPhone, and tap Trust. Then turn on Developer Mode. Run <code>./apps/ios/install.sh --check</code> again.</td></tr>
+        <tr><td>No “Trust This Computer?” prompt, or “Failed to authenticate the user to complete the pairing”</td><td>Nobody confirmed the prompt on the iPhone. Unlock the iPhone, unplug the cable, and plug it in again. Tap Trust and enter the passcode.</td></tr>
+        <tr><td>No Developer Mode switch in Settings</td><td>The switch shows only after Xcode connects to the iPhone. Keep it unlocked on the cable and open Xcode → Window → Devices and Simulators. Then close Settings fully and open it again.</td></tr>
+        <tr><td>The install stops while the iPhone is locked</td><td>Unlock the iPhone, keep the screen on, and run <code>./apps/ios/install.sh</code> again.</td></tr>
+        <tr><td>Auto-Lock is grey and cannot be changed</td><td>Low Power Mode is on. Touch the screen from time to time during the install, or turn off Low Power Mode.</td></tr>
+        <tr><td>“Untrusted Developer” when you open the app</td><td>Settings → General → VPN &amp; Device Management → Apple Development: your Apple ID → Trust.</td></tr>
         <tr><td>“No Apple team found”</td><td>Open Xcode → Settings → Accounts and add your Apple ID. Or set <code>TEAM_ID=ABCDE12345</code>.</td></tr>
-        <tr><td>The app does not open after a week</td><td>A free Apple ID install stops after 7 days. Run <code>./apps/ios/install.sh</code> again. Your data stays on the phone.</td></tr>
+        <tr><td>The app does not open after a week</td><td>A free Apple ID install stops after 7 days. Connect and unlock the iPhone, and run <code>./apps/ios/install.sh</code> again. Your data stays on the iPhone.</td></tr>
         <tr><td>“Peer removed pairing information”</td><td>The iPhone still has the old pairing. Settings → Bluetooth → the ring → Forget This Device.</td></tr>
-        <tr><td>“Reset needed”</td><td>The ring has another key. Reset the ring on its charger again.</td></tr>
+        <tr><td>“Reset needed”</td><td>The ring has another key, for example after a setup in the official app. Reset the ring on its charger again.</td></tr>
         <tr><td>“No ring found” or a timeout</td><td>Put the ring on its charger next to the iPhone. The ring's radio is weak.</td></tr>
         <tr><td>The Connect page says “This is the server's own address”</td><td>Open the page at the address that the phone uses, for example <code>http://server.tailnet.ts.net:8787</code>, or type that address into the field.</td></tr>
         <tr><td>The iPhone cannot reach the hub</td><td>Turn on Tailscale on the iPhone. The app accepts plain <code>http://</code> only for <code>*.ts.net</code> names; use <code>https://</code> for any other name.</td></tr>
