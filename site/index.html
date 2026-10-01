@@ -4,247 +4,192 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Open Oura</title>
-<meta name="description" content="Use your Oura ring with no account and no cloud. An open-source iPhone app with scores, insights, a journal, widgets, and live heart rate, computed on your phone.">
+<meta name="description" content="Use your Oura ring without an Oura account. A free, open-source iPhone app that reads the ring over Bluetooth and computes your scores on the phone.">
 <meta property="og:title" content="Open Oura: your Oura ring, no account, no cloud">
-<meta property="og:description" content="Open-source iPhone app for Oura Ring 3, 4, and 5: scores, insights, journal, widgets, live heart rate, and an optional self-hosted hub for your AI agent.">
+<meta property="og:description" content="Open-source iPhone app for Oura Ring 3, 4, and 5: scores, stress, bedtime, a journal, widgets, live heart rate, and an optional self-hosted hub for your AI agent.">
 <meta property="og:image" content="https://open-oura.vercel.app/assets/og.jpg">
 <meta property="og:url" content="https://open-oura.vercel.app">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://open-oura.vercel.app/assets/og.jpg">
-<meta name="theme-color" content="#05070b">
+<meta name="theme-color" content="#060a14">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 60'%3E%3Ccircle cx='30' cy='30' r='22' fill='none' stroke='%2364d2ff' stroke-width='9'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300..700&family=Geist+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..800&display=swap">
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.181.2/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.181.2/examples/jsm/"}}</script>
 <style>
+/* One day, top to bottom. Each section is a time of day. The script sets the page background
+   to the sky at that time (from data-sky), and sets data-tone on body from how bright it is. */
 :root {
-  --bg: #05070b; --bg-2: #0a0e15; --panel: #10151d; --line: rgba(236,240,245,.08); --line-2: rgba(236,240,245,.16);
-  --ink: #f1f3f7; --muted: #939cab; --faint: #626b7a;
-  --teal: #19c6d6; --violet: #6e62ff; --amber: #ff9f0a; --heart: #ff4d61; --green: #30d158; --blue: #2f8cff; --rem: #64d2ff;
-  --sans: "Geist", -apple-system, "Segoe UI", system-ui, sans-serif; --mono: "Geist Mono", ui-monospace, Menlo, monospace;
+  --night: #060a14;
+  --font: "Archivo", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --deep: #5e5ce6; --core: #2f8cff; --rem: #64d2ff; --awake: #ff9f0a;
+  --readiness: #19c6d6; --sleep: #6e5bff; --activity: #ff9519; --heart: #e8364f; --charge: #30d158;
   --ease: cubic-bezier(.16,1,.3,1);
-  color-scheme: dark;
 }
+[data-tone="dark"]  { --ink: #eef1f6; --muted: #9ba5b6; --faint: #5f6a7c; --rule: rgba(238,241,246,.14); --btn-ink: #060a14; color-scheme: dark; }
+[data-tone="light"] { --ink: #0e1420; --muted: #4c5768; --faint: #8a93a1; --rule: rgba(14,20,32,.16); --btn-ink: #f4f6f8; color-scheme: light; }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
-body { margin: 0; background: var(--bg); color: var(--ink); font: 400 17px/1.6 var(--sans); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+body { margin: 0; background: var(--night); color: var(--ink); font: 400 18px/1.6 var(--font); font-stretch: 100%; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
 img { max-width: 100%; display: block; }
-a { color: inherit; }
-:focus-visible { outline: 2px solid var(--rem); outline-offset: 3px; border-radius: 8px; }
-.shell { max-width: 1280px; margin: 0 auto; padding-inline: 28px; }
-@media (max-width: 640px) { .shell { padding-inline: 18px; } }
-.kicker { font: 500 12px/1 var(--mono); letter-spacing: .2em; text-transform: uppercase; color: var(--muted); }
-h1, h2, h3 { margin: 0; font-weight: 600; letter-spacing: -.045em; text-wrap: balance; }
-h2 { font-size: clamp(40px, 6vw, 84px); line-height: .98; }
-h3 { font-size: 24px; letter-spacing: -.02em; line-height: 1.2; }
+a { color: inherit; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+:focus-visible { outline: 2px solid var(--rem); outline-offset: 3px; border-radius: 4px; }
 p { margin: 0; }
-.lead { font-size: clamp(18px, 1.6vw, 22px); line-height: 1.5; color: var(--muted); max-width: 46ch; }
-.sample { font: 400 12px/1.4 var(--mono); color: var(--faint); letter-spacing: .02em; }
+h1, h2, h3 { margin: 0; font-weight: 640; font-stretch: 88%; letter-spacing: -.015em; text-wrap: balance; }
+h2 { font-size: clamp(32px, 3.7vw, 54px); line-height: 1.05; }
+h3 { font-size: 21px; line-height: 1.25; font-stretch: 92%; }
+section, header, footer { color: var(--ink); }
+.shell { max-width: 1240px; margin: 0 auto; padding-inline: 32px; }
+@media (max-width: 640px) { .shell { padding-inline: 18px; } }
+.body { color: var(--muted); max-width: 50ch; margin-top: 20px; }
+.note { color: var(--faint); font-size: 14px; line-height: 1.45; }
+
+/* The clock: a bedside clock face, ultra-condensed and light. It is the section's time. */
+.clock { display: block; font-size: clamp(84px, 12.5vw, 184px); line-height: .8; font-weight: 180; font-stretch: 62%; letter-spacing: -.01em; font-variant-numeric: tabular-nums lining-nums; color: var(--ink); margin: 0 0 28px -.04em; }
+.clock small { font-size: .2em; font-weight: 500; font-stretch: 85%; letter-spacing: 0; margin-left: .35em; color: var(--muted); vertical-align: .25em; }
 
 /* nav */
-.nav { position: fixed; inset: 0 0 auto 0; z-index: 30; padding-top: env(safe-area-inset-top, 0px); transition: background .4s var(--ease), border-color .4s; border-bottom: 1px solid transparent; }
-.nav.solid { background: color-mix(in srgb, var(--bg) 70%, transparent); backdrop-filter: blur(16px) saturate(150%); -webkit-backdrop-filter: blur(16px) saturate(150%); border-bottom-color: var(--line); }
-.nav .shell { display: flex; align-items: center; gap: 28px; height: 64px; }
-.logo { display: flex; align-items: center; gap: 10px; font-weight: 600; letter-spacing: -.02em; text-decoration: none; }
-.logo i { width: 18px; height: 18px; border-radius: 50%; border: 4px solid var(--rem); display: block; box-shadow: 0 0 14px rgba(100,210,255,.6); }
-.nav .links { display: flex; gap: 26px; margin-left: auto; font-size: 14px; }
-.nav .links a { color: var(--muted); text-decoration: none; transition: color .2s; }
+.nav { position: fixed; inset: 0 0 auto 0; z-index: 30; padding-top: env(safe-area-inset-top, 0px); transition: background .4s, border-color .4s; border-bottom: 1px solid transparent; }
+.nav.solid { background: color-mix(in srgb, var(--sky, #060a14) 78%, transparent); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-bottom-color: var(--rule); }
+.nav .shell { display: flex; align-items: center; gap: 30px; height: 64px; }
+.logo { display: flex; align-items: center; gap: 10px; font-weight: 640; font-stretch: 88%; font-size: 19px; text-decoration: none; }
+.logo i { width: 17px; height: 17px; border-radius: 50%; border: 3.5px solid currentColor; display: block; }
+.nav .links { display: flex; gap: 26px; margin-left: auto; font-size: 15px; }
+.nav .links a { color: var(--muted); text-decoration: none; }
 .nav .links a:hover { color: var(--ink); }
-@media (max-width: 820px) { .nav .links { display: none; } .nav .shell > .btn { margin-left: auto; } }
-.btn { display: inline-flex; align-items: center; gap: 10px; height: 46px; padding: 0 22px; border-radius: 999px; font: 500 15px/1 var(--sans); text-decoration: none; border: 1px solid var(--line-2); color: var(--ink); background: rgba(255,255,255,.02); cursor: pointer; transition: transform .25s var(--ease), background .25s, border-color .25s; white-space: nowrap; }
-.btn:hover { border-color: rgba(236,240,245,.34); background: rgba(255,255,255,.05); }
-.btn:active { transform: scale(.98); }
-.btn.solid { background: var(--ink); color: #06080c; border-color: var(--ink); }
-.btn.solid:hover { background: #fff; }
-.btn.small { height: 36px; padding: 0 16px; font-size: 14px; }
+@media (max-width: 860px) { .nav .links { display: none; } .nav .shell > .btn { margin-left: auto; } }
+.btn { display: inline-flex; align-items: center; height: 48px; padding: 0 22px; border-radius: 6px; font: 560 16px/1 var(--font); font-stretch: 95%; text-decoration: none; border: 1px solid var(--rule); color: var(--ink); background: transparent; cursor: pointer; }
+.btn:hover { border-color: var(--muted); }
+.btn.solid { background: var(--ink); color: var(--btn-ink); border-color: var(--ink); }
+.btn.small { height: 38px; padding: 0 16px; font-size: 15px; }
 
-/* ── hero: the ring, scroll-driven ── */
+/* ── hero: the ring at night, scroll-driven (unchanged mechanics) ── */
 .hero { position: relative; height: 330vh; }
 .hero .pin { position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden; }
 .hero canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .hero .glow { position: absolute; inset: 0; background: radial-gradient(60% 55% at 50% 48%, rgba(47,140,255,.12), transparent 70%); pointer-events: none; }
 .layer { position: absolute; inset: 0; pointer-events: none; }
 .layer a, .layer button { pointer-events: auto; }
-.hero .intro { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; text-align: center; padding: 0 20px calc(8vh + env(safe-area-inset-bottom, 0px)); }
-.hero h1 { font-size: clamp(46px, 7.4vw, 118px); line-height: .92; letter-spacing: -.055em; }
-.hero h1 .dim { color: #4f5866; }
-.hero .intro .lead { margin: 26px auto 0; text-align: center; max-width: 52ch; }
-.hero .ctas { display: flex; gap: 12px; margin-top: 30px; flex-wrap: wrap; justify-content: center; }
-.hero .scrollhint { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); font: 500 11px var(--mono); letter-spacing: .24em; color: var(--faint); text-transform: uppercase; }
+.hero .intro { display: flex; align-items: flex-end; padding-bottom: calc(7vh + env(safe-area-inset-bottom, 0px)); }
+.hero .intro .shell { width: 100%; display: grid; grid-template-columns: auto minmax(0, 1.1fr) minmax(0, 1fr); gap: 0 48px; align-items: end; }
+.hero .intro .clock { margin: 0; }
+.hero h1 { font-size: clamp(34px, 3.6vw, 56px); line-height: 1.04; max-width: 14ch; }
+.hero .intro .body { margin-top: 0; max-width: 44ch; }
+.hero .ctas { display: flex; gap: 12px; margin-top: 26px; flex-wrap: wrap; }
 .hero .night { opacity: 0; }
-.hero .night .cap { position: absolute; right: max(28px, calc((100vw - 1280px) / 2 + 28px)); bottom: 10vh; text-align: right; }
-.hero .night .cap h2 { margin-left: auto; }
-.hero .night .cap h2 { font-size: clamp(34px, 4.4vw, 64px); margin-top: 16px; max-width: 12ch; }
-.hero .lane { position: absolute; left: max(18px, calc((100vw - 1280px) / 2 + 20px)); font: 500 12px var(--mono); letter-spacing: .16em; text-transform: uppercase; transform: translateY(-50%); padding: 7px 12px; border-radius: 999px; background: rgba(5,7,11,.82); border: 1px solid rgba(255,255,255,.08); backdrop-filter: blur(8px); }
-.hero .stream { opacity: 0; display: flex; align-items: center; }
-.hero .stream .shell { width: 100%; }
-.hero .stream h2 { max-width: 11ch; }
-@media (min-width: 701px) { .hero .stream { align-items: flex-end; padding-bottom: 11vh; box-sizing: border-box; } .hero .stream .shell { display: flex; flex-direction: column; align-items: flex-end; text-align: right; } }
-@media (max-width: 700px) { .hero .lane { display: none; } .hero .night .cap { top: 12vh; } .hero .stream { align-items: flex-start; padding-top: 11vh; box-sizing: border-box; } .hero .stream h2 { font-size: 34px; } }
+.hero .night .cap { position: absolute; right: max(32px, calc((100vw - 1240px) / 2 + 32px)); bottom: 9vh; text-align: right; }
+.hero .night .cap h2 { margin-left: auto; max-width: 13ch; }
+.hero .lane { position: absolute; left: max(18px, calc((100vw - 1240px) / 2 + 20px)); font-size: 14px; font-weight: 600; font-stretch: 90%; transform: translateY(-50%); padding: 5px 10px; border-radius: 4px; background: rgba(6,10,20,.85); }
+.hero .stream { opacity: 0; display: flex; align-items: flex-end; padding-bottom: 10vh; }
+.hero .stream .shell { width: 100%; display: flex; justify-content: flex-end; }
+.hero .stream h2 { max-width: 17ch; text-align: right; }
+@media (max-width: 1100px) and (min-width: 761px) { .hero .intro .shell { grid-template-columns: auto minmax(0, 1fr); } .hero .intro .shell > div { grid-column: 2; margin-top: 16px; } }
+@media (max-width: 760px) {
+  .hero .intro .shell { grid-template-columns: 1fr; }
+  .hero .intro .body { margin-top: 16px; }
+  .hero .intro .clock { grid-row: auto; margin-bottom: 18px; font-size: 76px; }
+  .hero .lane { display: none; }
+  .hero .night .cap { top: 12vh; bottom: auto; }
+  .hero .stream { align-items: flex-start; padding: 12vh 0 0; }
+  .hero .stream .shell { justify-content: flex-start; }
+  .hero .stream h2 { text-align: left; font-size: 34px; }
+}
 
-/* ── story: pinned phone, steps ── */
-.story { position: relative; height: 700vh; }
-.story .pin { position: sticky; top: 0; height: 100vh; height: 100svh; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 60px; max-width: 1280px; margin: 0 auto; padding-inline: 28px; }
-.story .steps { position: relative; height: 420px; }
-.story .step { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; opacity: 0; transform: translateY(30px); transition: opacity .6s var(--ease), transform .6s var(--ease); }
-.story .step.on { opacity: 1; transform: none; }
-.story .step h2 { font-size: clamp(38px, 5vw, 72px); margin-top: 18px; max-width: 13ch; }
-.story .step p { margin-top: 22px; }
-.story .rail { position: absolute; left: 0; bottom: -40px; display: flex; gap: 8px; }
-.story .rail i { width: 38px; height: 4px; border-radius: 2px; background: rgba(255,255,255,.12); overflow: hidden; display: block; }
-.story .rail i b { display: block; height: 100%; width: 0; background: var(--ink); }
-.device { position: relative; width: min(380px, 34vw, calc((100svh - 170px) * 0.46)); aspect-ratio: 1206 / 2622; border-radius: 58px; padding: 11px; background: linear-gradient(150deg, #3b4049, #0d1015 42%, #1d222b); box-shadow: 0 0 0 1.5px rgba(255,255,255,.08), inset 0 1px 0 rgba(255,255,255,.14), 0 80px 160px -40px rgba(0,0,0,.95), 0 0 120px -30px rgba(47,140,255,.35); }
-.device .scr { position: relative; width: 100%; height: 100%; border-radius: 48px; overflow: hidden; background: #000; }
-.device .scr img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .7s var(--ease), transform 1.2s var(--ease); transform: scale(1.04); }
-.device .scr img.on { opacity: 1; transform: none; }
+/* ── the day: one entry per time ── */
+.entry { padding-block: clamp(90px, 13vw, 170px); }
+.entry .row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: clamp(40px, 7vw, 110px); align-items: center; }
+.entry figure { margin: 0; }
+.entry .row > * { min-width: 0; }
+.entry figcaption { margin-top: 16px; text-align: center; }
+.device { position: relative; width: min(340px, 30vw); aspect-ratio: 1206 / 2622; border-radius: 52px; padding: 10px; background: linear-gradient(150deg, #3b4049, #0d1015 42%, #1d222b); box-shadow: 0 0 0 1.5px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.14), 0 50px 90px -40px rgba(4,8,18,.65); }
+.device .scr { width: 100%; height: 100%; border-radius: 43px; overflow: hidden; background: #000; }
+.device .scr img { width: 100%; height: 100%; object-fit: cover; }
 @media (max-width: 860px) {
-  .story { height: auto; }
-  .story .pin { position: static; height: auto; grid-template-columns: 1fr; padding-block: 60px; }
-  .story .steps { height: auto; }
-  .story .step { position: static; opacity: 1; transform: none; margin-bottom: 48px; }
-  .story .rail { display: none; }
-  .story .device { width: min(320px, 80vw); margin: 0 auto; }
+  .entry .row { grid-template-columns: 1fr; }
+  .device { width: min(300px, 76vw); margin: 0 auto; }
 }
 
-/* sections */
-section.band { padding-block: clamp(90px, 14vw, 180px); position: relative; }
-.head { max-width: 900px; }
-.head h2 { margin-top: 18px; }
-.head .lead { margin-top: 22px; }
+/* widgets at 09:41 */
+.widgets .row { grid-template-columns: 1fr; }
+.board { display: flex; gap: 28px; align-items: flex-end; justify-content: flex-start; flex-wrap: wrap; margin-top: 56px; }
+.wsmall { width: 170px; height: 170px; border-radius: 30px; overflow: hidden; box-shadow: 0 30px 60px -30px rgba(4,8,18,.6); }
+.wmed { width: 370px; border-radius: 30px; background: #232326; color: #fff; padding: 20px 22px 16px; box-shadow: 0 30px 60px -30px rgba(4,8,18,.6); }
+.wmed .rings { display: grid; grid-template-columns: repeat(3, 1fr); }
+.wmed .r { text-align: center; }
+.dial { position: relative; width: 84px; height: 84px; margin: 0 auto; }
+.dial svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.dial .v { position: absolute; inset: 0; display: grid; place-items: center; font-size: 28px; font-weight: 640; font-stretch: 90%; font-variant-numeric: tabular-nums; }
+.wmed .l { margin-top: 6px; font-size: 13px; color: #a2a2aa; }
+.wmed .foot { display: flex; justify-content: space-between; margin-top: 12px; font-size: 12px; color: #8d8d95; }
+.lockp { width: 190px; aspect-ratio: 9 / 19.5; border-radius: 34px; padding: 7px; background: linear-gradient(150deg, #3a3f49, #0d1015 42%, #1d222b); box-shadow: 0 30px 60px -30px rgba(4,8,18,.6); }
+.lockp .scr { width: 100%; height: 100%; border-radius: 28px; overflow: hidden; background: linear-gradient(180deg, #1b3a5c, #0b1320 60%, #06080d); text-align: center; color: #fff; display: flex; flex-direction: column; align-items: center; }
+.lockp .inl { margin-top: 44px; font-size: 11px; font-weight: 600; opacity: .85; }
+.lockp .time { font-size: 58px; font-weight: 560; font-stretch: 80%; line-height: 1; margin-top: 2px; }
+.lockp svg { width: 54px; margin-top: 22px; }
+@media (max-width: 640px) { .board { justify-content: center; } .wmed { width: 100%; } }
 
-/* widgets */
-.widgets .board { position: relative; height: 640px; margin-top: 70px; perspective: 1600px; }
-.wmed { position: absolute; left: 50%; top: 120px; width: 620px; height: 292px; margin-left: -310px; border-radius: 44px; background: #232326; padding: 30px 38px; box-shadow: 0 60px 120px -30px rgba(0,0,0,.9), inset 0 0 0 1.5px rgba(255,255,255,.06); }
-.wmed .rings { display: flex; justify-content: space-between; padding: 0 16px; }
-.wmed .r { text-align: center; position: relative; }
-.wmed .r svg { width: 132px; height: 132px; display: block; }
-.wmed .r .v { position: absolute; left: 0; right: 0; top: 40px; font-size: 46px; font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
-.wmed .r .l { margin-top: 10px; font-size: 22px; color: #9a9aa2; }
-.wmed .foot { display: flex; justify-content: space-between; margin-top: 14px; font-size: 19px; color: #8d8d95; }
-.wsmall { position: absolute; left: calc(50% - 560px); top: 330px; width: 250px; height: 250px; border-radius: 40px; overflow: hidden; box-shadow: 0 50px 100px -30px rgba(0,0,0,.9); }
-.lockp { position: absolute; left: calc(50% + 350px); top: 0; width: 280px; aspect-ratio: 9 / 19.5; border-radius: 46px; padding: 9px; background: linear-gradient(150deg, #3a3f49, #0d1015 42%, #1d222b); box-shadow: 0 60px 120px -30px rgba(0,0,0,.95); }
-.lockp .scr { width: 100%; height: 100%; border-radius: 38px; overflow: hidden; background: radial-gradient(120% 70% at 30% 20%, #1b3a5c, #0b1320 55%, #06080d); text-align: center; position: relative; }
-.lockp .inl { margin-top: 64px; font-size: 14px; font-weight: 600; color: rgba(255,255,255,.82); }
-.lockp .time { font-size: 84px; font-weight: 600; letter-spacing: -.03em; line-height: 1; }
-.lockp svg { position: absolute; left: 50%; top: 220px; width: 76px; margin-left: -38px; }
-@media (max-width: 1100px) {
-  .widgets .board { height: auto; display: flex; flex-direction: column; align-items: center; gap: 30px; perspective: none; }
-  .wmed, .wsmall, .lockp { position: static; margin: 0; }
-  .wmed { width: min(620px, 92vw); height: auto; padding: 22px; } .wmed .r svg { width: 100px; height: 100px; } .wmed .r .v { top: 28px; font-size: 34px; } .wmed .r .l { font-size: 16px; } .wmed .foot { font-size: 14px; }
-}
+/* live heart rate at 18:30 */
+.bpm { display: flex; align-items: baseline; gap: 10px; margin-top: 34px; }
+.bpm .n { font-size: 84px; line-height: .9; font-weight: 180; font-stretch: 62%; font-variant-numeric: tabular-nums; color: var(--heart); }
+.bpm .u { color: var(--muted); }
+#ecg { width: 100%; height: 120px; display: block; margin-top: 10px; }
 
-/* live heart rate */
-.live { overflow: hidden; }
-.live .grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 40px; align-items: center; }
-.bpm { display: flex; align-items: baseline; gap: 14px; }
-.bpm .n { font-size: clamp(120px, 18vw, 260px); font-weight: 600; letter-spacing: -.07em; line-height: .85; font-variant-numeric: tabular-nums; transition: color .3s; }
-.bpm .u { font-size: 32px; color: var(--muted); }
-.bpm .heart { width: 30px; height: 30px; border-radius: 50%; background: var(--heart); box-shadow: 0 0 30px var(--heart); align-self: center; transform: scale(.6); transition: transform .12s; }
-.live canvas { width: 100%; height: 220px; display: block; margin-top: 40px; }
-@media (max-width: 860px) { .live .grid { grid-template-columns: 1fr; } }
+/* battery at 22:30 */
+.batt { margin-top: 34px; max-width: 460px; }
+.batt .top { display: flex; justify-content: space-between; align-items: baseline; }
+.batt .n { font-size: 56px; line-height: 1; font-weight: 200; font-stretch: 62%; color: var(--charge); }
+.batt svg { width: 100%; height: 70px; margin-top: 8px; display: block; }
 
-/* ring page */
-.ringpage .grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 60px; align-items: center; margin-top: 70px; }
-.finder { position: relative; aspect-ratio: 1; max-width: 520px; width: 100%; margin: 0 auto; display: grid; place-items: center; }
-.finder i { position: absolute; inset: 22%; border-radius: 50%; border: 2px solid rgba(100,210,255,.7); animation: ripple 3.2s var(--ease) infinite; opacity: 0; }
-.finder i:nth-child(2) { animation-delay: 1.07s; } .finder i:nth-child(3) { animation-delay: 2.13s; }
-@keyframes ripple { 0% { transform: scale(.4); opacity: .9; } 100% { transform: scale(1.35); opacity: 0; } }
-.finder .core { width: 34%; aspect-ratio: 1; border-radius: 50%; background: conic-gradient(from 210deg, #2b2f36, #e3e6ec 12%, #6b717b 24%, #1b1e23 40%, #b9bec6 58%, #474c55 72%, #eef0f4 84%, #2b2f36); -webkit-mask: radial-gradient(circle, transparent 60%, #000 61%); mask: radial-gradient(circle, transparent 60%, #000 61%); filter: drop-shadow(0 0 30px rgba(100,210,255,.35)); }
-.batt .n { font-size: clamp(90px, 12vw, 170px); font-weight: 600; letter-spacing: -.06em; line-height: .9; font-variant-numeric: tabular-nums; }
-.batt svg { width: 100%; height: 160px; margin-top: 26px; display: block; overflow: visible; }
-@media (max-width: 860px) { .ringpage .grid { grid-template-columns: 1fr; } }
+/* hub at 23:47 */
+.hub .row { align-items: start; }
+.win { width: min(560px, 46vw); border-radius: 10px; overflow: hidden; border: 1px solid var(--rule); background: #0b0f17; }
+.win img { width: 100%; }
+.term { margin-top: 14px; width: min(560px, 46vw); border-radius: 10px; background: #0b0f17; border: 1px solid var(--rule); padding: 16px 18px; font: 400 13px/1.7 ui-monospace, Menlo, monospace; color: #cfd6df; white-space: pre; overflow-x: auto; }
+.term .p { color: var(--charge); } .term .k { color: var(--rem); } .term .v { color: var(--awake); } .term .ok { color: #8a93a1; }
+.tools { margin-top: 22px; color: var(--muted); font-size: 15px; }
+.tools code { font: 400 14px ui-monospace, Menlo, monospace; color: var(--ink); overflow-wrap: anywhere; }
+@media (max-width: 860px) { .win, .term { width: 100%; } }
 
-/* the rest */
-.rest .list { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 60px; border-top: 1px solid var(--line); }
-.rest .item { padding: 30px 26px 34px 0; border-bottom: 1px solid var(--line); }
-.rest .item + .item { padding-left: 26px; border-left: 1px solid var(--line); }
-.rest .item:nth-child(4n+1) { padding-left: 0; border-left: 0; }
-.rest .item svg { width: 26px; height: 26px; color: var(--rem); }
-.rest .item h3 { font-size: 20px; margin-top: 18px; }
-.rest .item p { font-size: 15px; color: var(--muted); margin-top: 8px; }
-@media (max-width: 980px) { .rest .list { grid-template-columns: 1fr 1fr; } .rest .item:nth-child(2n+1) { padding-left: 0; border-left: 0; } .rest .item:nth-child(2n) { padding-left: 26px; border-left: 1px solid var(--line); } }
-@media (max-width: 560px) { .rest .list { grid-template-columns: 1fr; } .rest .item, .rest .item:nth-child(2n) { padding-left: 0; border-left: 0; } }
-
-/* hub */
-.hub .grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 60px; align-items: center; }
-.hub .grid > *, .live .grid > *, .setup .grid > *, .faq .grid > *, .ringpage .grid > * { min-width: 0; }
-.hub .term { max-width: 100%; }
-.hub .win { border-radius: 16px; overflow: hidden; border: 1px solid var(--line-2); background: #111418; box-shadow: 0 80px 160px -40px rgba(0,0,0,.95); transform: perspective(1800px) rotateY(-14deg); transform-origin: 0 50%; }
-.hub .win .bar { height: 36px; display: flex; gap: 8px; align-items: center; padding: 0 14px; border-bottom: 1px solid var(--line); }
-.hub .win .bar i { width: 10px; height: 10px; border-radius: 50%; background: #2c323c; display: block; }
-.hub .term { margin-top: -90px; margin-left: 12%; position: relative; border-radius: 16px; background: rgba(7,9,13,.95); border: 1px solid var(--line-2); padding: 22px 26px; font: 400 14px/1.7 var(--mono); color: #cfd6df; white-space: pre; overflow-x: auto; box-shadow: 0 60px 120px -30px rgba(0,0,0,.95); }
-.hub .term .p { color: var(--green); } .hub .term .k { color: #7fd7ff; } .hub .term .v { color: #ffd479; }
-.hub .tool { display: inline-block; margin: 8px 0; padding: 4px 12px; border-radius: 999px; background: rgba(100,210,255,.12); color: #7fd7ff; }
-.hub .tools { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 26px; }
-.hub .tools span { font: 400 12px var(--mono); padding: 7px 11px; border: 1px solid var(--line-2); border-radius: 999px; color: var(--muted); }
-@media (max-width: 900px) { .hub .grid { grid-template-columns: 1fr; } .hub .win { transform: none; } .hub .term { margin: 16px 0 0; } }
-
-/* film */
-.film { border-radius: 28px; overflow: hidden; border: 1px solid var(--line); background: #000; aspect-ratio: 16 / 9; margin-top: 60px; box-shadow: 0 80px 180px -60px rgba(47,140,255,.4); }
-.film video { width: 100%; height: 100%; display: block; }
-
-/* path */
-.path { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); position: relative; margin-top: 70px; }
-.path svg { position: absolute; left: 0; right: 0; top: 24px; width: 100%; height: 4px; overflow: visible; }
-.path .stop { position: relative; padding-right: 24px; }
-.path .dot { width: 48px; height: 48px; border-radius: 50%; border: 1px solid var(--line-2); background: var(--bg); display: grid; place-items: center; position: relative; z-index: 1; }
-.path .dot i { width: 14px; height: 14px; border-radius: 50%; display: block; box-shadow: 0 0 16px currentColor; }
-.path h3 { margin-top: 22px; font-size: 22px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-.path .opt { font: 500 10px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--faint); border: 1px solid var(--line-2); border-radius: 999px; padding: 5px 8px; }
-.path p { color: var(--muted); font-size: 15px; margin-top: 10px; max-width: 30ch; }
-@media (max-width: 900px) { .path { grid-template-columns: 1fr; gap: 34px; } .path svg { display: none; } .path .stop { padding-left: 70px; } .path .dot { position: absolute; left: 0; top: 0; } .path h3 { margin-top: 10px; } }
-
-/* setup */
-.setup .grid { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 7fr); gap: 80px; align-items: start; }
-.steps3 { list-style: none; margin: 0; padding: 0; counter-reset: s; border-top: 1px solid var(--line); }
-.steps3 li { counter-increment: s; display: grid; grid-template-columns: 56px minmax(0, 1fr); padding: 28px 0; border-bottom: 1px solid var(--line); }
-.steps3 li::before { content: "0" counter(s); font: 500 13px/1.9 var(--mono); color: var(--faint); }
-.steps3 h3 { font-size: 21px; } .steps3 p { color: var(--muted); font-size: 15px; margin-top: 8px; }
-.cmd { display: flex; align-items: center; gap: 12px; margin-top: 14px; background: #07090d; border: 1px solid var(--line); border-radius: 12px; padding: 10px 10px 10px 16px; font: 400 13px/1.5 var(--mono); color: #cfd6df; }
-.cmd code { flex: 1; overflow-x: auto; white-space: nowrap; } .cmd code::before { content: "$ "; color: var(--green); }
-.copy { flex: none; border: 1px solid var(--line-2); background: var(--panel); color: var(--muted); border-radius: 8px; font: 500 12px/1 var(--mono); padding: 8px 10px; cursor: pointer; }
-.leds { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
-.leds span { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px 6px 8px; }
-.leds i { width: 10px; height: 10px; border-radius: 50%; display: block; box-shadow: 0 0 10px currentColor; }
-@media (max-width: 900px) { .setup .grid { grid-template-columns: 1fr; gap: 40px; } }
-
-/* faq */
-.faq .grid { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 7fr); gap: 80px; }
-.faq details { border-bottom: 1px solid var(--line); } .faq details:first-child { border-top: 1px solid var(--line); }
-.faq summary { list-style: none; cursor: pointer; padding: 22px 40px 22px 0; font-size: 18px; font-weight: 500; position: relative; }
+/* the rest of the page sits in the night */
+.part { padding-block: clamp(80px, 11vw, 140px); border-top: 1px solid var(--rule); }
+.part > .shell { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 7fr); gap: 32px 80px; }
+.part > .shell > :first-child h2 { position: sticky; top: 100px; }
+@media (max-width: 860px) { .part > .shell { grid-template-columns: 1fr; } .part > .shell > :first-child h2 { position: static; } }
+.also { display: grid; grid-template-columns: 1fr 1fr; gap: 30px 40px; margin: 0; }
+.also dt { font-weight: 640; font-stretch: 92%; }
+.also dd { margin: 6px 0 0; color: var(--muted); font-size: 16px; line-height: 1.55; }
+@media (max-width: 560px) { .also { grid-template-columns: 1fr; } }
+.film video { width: 100%; display: block; border-radius: 8px; background: #000; aspect-ratio: 16 / 9; }
+.steps3 { list-style: none; margin: 0; padding: 0; counter-reset: s; }
+.steps3 li { counter-increment: s; display: grid; grid-template-columns: 44px minmax(0, 1fr); padding: 26px 0; border-top: 1px solid var(--rule); }
+.steps3 li:last-child { border-bottom: 1px solid var(--rule); }
+.steps3 li::before { content: counter(s); font-size: 34px; line-height: 1; font-weight: 200; font-stretch: 62%; color: var(--muted); }
+.steps3 p { color: var(--muted); font-size: 16px; margin-top: 8px; }
+.cmd { display: flex; align-items: center; gap: 12px; margin-top: 14px; background: #0b0f17; border: 1px solid var(--rule); border-radius: 6px; padding: 8px 8px 8px 14px; font: 400 13px/1.5 ui-monospace, Menlo, monospace; color: #cfd6df; }
+.cmd code { flex: 1; overflow-x: auto; white-space: nowrap; }
+.copy { flex: none; border: 1px solid var(--rule); background: transparent; color: var(--muted); border-radius: 4px; font: 500 13px/1 var(--font); padding: 8px 10px; cursor: pointer; }
+.leds i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin: 0 5px 0 2px; vertical-align: 1px; }
+.faq details { border-top: 1px solid var(--rule); } .faq details:last-child { border-bottom: 1px solid var(--rule); }
+.faq summary { list-style: none; cursor: pointer; padding: 20px 36px 20px 0; font-weight: 600; font-stretch: 92%; position: relative; }
 .faq summary::-webkit-details-marker { display: none; }
-.faq summary::after { content: ""; position: absolute; right: 6px; top: 50%; width: 11px; height: 11px; border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted); transform: translateY(-70%) rotate(45deg); transition: transform .3s var(--ease); }
-.faq details[open] summary::after { transform: translateY(-30%) rotate(-135deg); }
-.faq details p { color: var(--muted); padding: 0 40px 24px 0; max-width: 64ch; }
-@media (max-width: 900px) { .faq .grid { grid-template-columns: 1fr; gap: 30px; } }
-
-.credit { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 32px; align-items: center; padding: 38px; border-radius: 28px; border: 1px solid var(--line); background: linear-gradient(120deg, var(--panel), var(--bg-2)); }
-.credit p { color: var(--muted); margin-top: 12px; max-width: 66ch; }
-.credit .n { font-size: 46px; font-weight: 600; letter-spacing: -.04em; text-align: right; }
-@media (max-width: 760px) { .credit { grid-template-columns: 1fr; } .credit .n { text-align: left; } }
-.final h2 { font-size: clamp(48px, 8vw, 120px); letter-spacing: -.055em; line-height: .92; }
-.final .ctas { display: flex; gap: 12px; margin-top: 36px; flex-wrap: wrap; }
-footer { border-top: 1px solid var(--line); padding-block: 32px 48px; font-size: 13px; color: var(--faint); }
-footer .shell { display: flex; justify-content: space-between; gap: 16px 32px; flex-wrap: wrap; }
-footer nav { display: flex; gap: 22px; flex-wrap: wrap; } footer a { color: var(--muted); text-decoration: none; } footer a:hover { color: var(--ink); }
-
-.reveal { opacity: 0; transform: translateY(40px); }
-@media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
-  .reveal { opacity: 1; transform: none; }
-  .finder i { animation: none; opacity: .4; }
-}
+.faq summary::after { content: "+"; position: absolute; right: 4px; top: 50%; transform: translateY(-50%); font-weight: 300; font-size: 26px; color: var(--muted); }
+.faq details[open] summary::after { content: "−"; }
+.faq details p { color: var(--muted); padding: 0 36px 22px 0; max-width: 62ch; font-size: 16px; }
+footer { padding: 40px 0 56px; color: var(--faint); font-size: 14px; border-top: 1px solid var(--rule); }
+footer .shell { display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+footer nav { display: flex; gap: 20px; flex-wrap: wrap; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 </style>
 </head>
-<body>
+<body data-tone="dark">
 
 <header class="nav" id="nav">
   <div class="shell">
     <a class="logo" href="#top"><i></i>Open Oura</a>
     <nav class="links" aria-label="Sections">
-      <a href="#story">Features</a><a href="#widgets">Widgets</a><a href="#hub">Hub</a><a href="#film">Film</a><a href="#faq">FAQ</a>
+      <a href="#today">The day</a><a href="#hub">Hub</a><a href="#film">Film</a><a href="#setup">Setup</a><a href="#faq">Questions</a>
       <a href="https://github.com/KenWuqianghao/open_health">GitHub</a>
     </nav>
     <a class="btn solid small" href="/setup">Set it up</a>
@@ -252,180 +197,194 @@ footer nav { display: flex; gap: 22px; flex-wrap: wrap; } footer a { color: var(
 </header>
 
 <main id="top">
-<!-- HERO: the ring. Scroll turns it into one real night, then streams it to the phone. -->
-<section class="hero" id="hero" aria-label="Open Oura">
+<!-- 23:47. The ring at night. Scroll stages the night, then sends it to the phone. -->
+<section class="hero" id="hero" data-sky="#060a14" aria-label="Open Oura">
   <div class="pin">
     <canvas id="ringgl" aria-hidden="true"></canvas>
     <div class="glow"></div>
-    <div class="layer intro" id="intro">
-      <h1>Your Oura ring.<br><span class="dim">No account. No cloud.</span></h1>
-      <p class="lead">Open source, for Oura Ring 3, 4, and 5 on iPhone. Scores, insights, a journal, widgets, and live heart rate, all computed on the phone, straight from the ring.</p>
-      <div class="ctas"><a class="btn solid" href="/setup">Set it up</a><a class="btn" href="#film">Watch the film</a></div>
-    </div>
+    <div class="layer intro" id="intro"><div class="shell">
+      <time class="clock" datetime="23:47">23:47</time>
+      <h1>Use your Oura ring without an Oura account.</h1>
+      <div>
+        <p class="body">Open Oura is a free, open-source iPhone app for Oura Ring 3, 4, and 5. It reads the ring over Bluetooth and computes your scores on the phone. Nothing goes to a cloud.</p>
+        <div class="ctas"><a class="btn solid" href="/setup">Set it up</a><a class="btn" href="#film">Watch the film</a></div>
+      </div>
+    </div></div>
     <div class="layer night" id="night">
-      <div class="cap"><span class="kicker">One real night · 03:53 – 13:21</span><h2>Staged on your phone.</h2></div>
-      <div class="lane" id="lane0" style="color:var(--amber)">Awake</div>
+      <div class="cap"><h2>While you sleep, the ring keeps notes.</h2></div>
+      <div class="lane" id="lane0" style="color:var(--awake)">Awake</div>
       <div class="lane" id="lane1" style="color:var(--rem)">REM</div>
-      <div class="lane" id="lane2" style="color:var(--blue)">Core</div>
+      <div class="lane" id="lane2" style="color:var(--core)">Core</div>
       <div class="lane" id="lane3" style="color:#8e86ff">Deep</div>
     </div>
-    <div class="layer stream" id="streamLayer"><div class="shell"><span class="kicker">Then it goes one place</span><h2 style="margin-top:18px">Your iPhone.<br><span style="color:#4f5866">Nowhere else.</span></h2></div></div>
-    <div class="scrollhint" id="hint">Scroll</div>
+    <div class="layer stream" id="streamLayer"><div class="shell"><h2>In the morning, it all goes to your iPhone, and nowhere else.</h2></div></div>
   </div>
 </section>
 
-<!-- STORY: pinned phone, one feature per step -->
-<section class="story" id="story" aria-label="Features">
-  <div class="pin">
-    <div class="steps">
-      <div class="step" data-i="0"><span class="kicker" style="color:var(--teal)">Today</span><h2>Readiness, sleep, and activity.</h2><p class="lead">Scored every morning from your own nights, with the vitals behind them: HRV, resting heart rate, breathing, blood oxygen, temperature.</p></div>
-      <div class="step" data-i="1"><span class="kicker" style="color:var(--rem)">Every night</span><h2>Stages, minute by minute.</h2><p class="lead">A hypnogram with heart rate, HRV, temperature, blood oxygen, and movement on the same hours. Drag across it to read any minute.</p></div>
-      <div class="step" data-i="2"><span class="kicker" style="color:var(--amber)">New · Stress</span><h2>Stress, and how you bounce back.</h2><p class="lead">Stressed and restored time through the day, a 48-hour timeline, and a resilience level from the last two weeks.</p></div>
-      <div class="step" data-i="3"><span class="kicker" style="color:var(--violet)">New · Guidance</span><h2>Your ideal bedtime.</h2><p class="lead">A bedtime window from the nights that went best, plus sleep regularity and your chronotype.</p></div>
-      <div class="step" data-i="4"><span class="kicker" style="color:var(--green)">New · Journal</span><h2>What your tags do to your nights.</h2><p class="lead">Tag caffeine, alcohol, a late meal. The app compares the nights after each tag with all the others, and shows only clear differences.</p></div>
-      <div class="step" data-i="5"><span class="kicker" style="color:var(--blue)">New · Reports</span><h2>Every week, in plain words.</h2><p class="lead">Weekly and monthly averages and totals, and how they moved against the week before.</p></div>
-      <div class="step" data-i="6"><span class="kicker" style="color:var(--heart)">New · Workouts</span><h2>One list for every workout.</h2><p class="lead">Sessions from the ring, Apple Health, and your own entries, merged so nothing counts twice.</p></div>
-      <div class="rail" id="rail"><i><b></b></i><i><b></b></i><i><b></b></i><i><b></b></i><i><b></b></i><i><b></b></i><i><b></b></i></div>
+<section class="entry" id="today" data-sky="#c7d2e0">
+  <div class="shell row">
+    <div>
+      <time class="clock" datetime="07:32">07:32</time>
+      <h2>You wake up, and your scores are ready.</h2>
+      <p class="body">The night moves from the ring to the app over Bluetooth. Readiness, sleep, and activity are scored on the phone from your own nights, next to the vitals behind them: HRV, resting heart rate, breathing, blood oxygen, and temperature.</p>
+    </div>
+    <figure><div class="device"><div class="scr"><img src="assets/app-home-1.jpg" alt="Today: readiness 92, sleep 97, activity 63"></div></div><figcaption class="note">App screens show sample data.</figcaption></figure>
+  </div>
+</section>
+
+<section class="entry" data-sky="#dce3ea">
+  <div class="shell row">
+    <div>
+      <time class="clock" datetime="07:45">07:45</time>
+      <h2>Read the night, minute by minute.</h2>
+      <p class="body">Sleep stages with heart rate, HRV, temperature, blood oxygen, and movement on the same hours. Drag across the chart to read any minute.</p>
+    </div>
+    <figure><div class="device"><div class="scr"><img src="assets/app-sleep-detail.jpg" alt="A night: stages with heart rate, HRV, blood oxygen, temperature, and movement" loading="lazy"></div></div></figure>
+  </div>
+</section>
+
+<section class="entry widgets" id="widgets" data-sky="#ebeef1">
+  <div class="shell row">
+    <div>
+      <time class="clock" datetime="09:41">09:41</time>
+      <h2>Your scores are on the Lock Screen before you open the app.</h2>
+      <p class="body">Home Screen widgets in two sizes and Lock Screen widgets. Ask Siri for your readiness, your sleep score, or the ring battery.</p>
+      <div class="board" id="board">
+        <div class="wsmall"><img src="assets/widget-small.png" alt="Small widget: readiness 92, sleep 97, activity 63"></div>
+        <div class="wmed" id="wmed" role="img" aria-label="Medium widget: readiness 92, sleep 97, activity 63, HRV 47 ms, ring battery 57 percent">
+          <div class="rings">
+            <div class="r"><div class="dial"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" fill="none" stroke="#10454a" stroke-width="10"/><circle class="arc" data-v="92" cx="50" cy="50" r="42" fill="none" stroke="#12cddc" stroke-width="10" stroke-linecap="round" transform="rotate(-90 50 50)" pathLength="100" stroke-dasharray="100" stroke-dashoffset="8"/></svg><span class="v">92</span></div><div class="l">Readiness</div></div>
+            <div class="r"><div class="dial"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" fill="none" stroke="#2b2660" stroke-width="10"/><circle class="arc" data-v="97" cx="50" cy="50" r="42" fill="none" stroke="#6e5bff" stroke-width="10" stroke-linecap="round" transform="rotate(-90 50 50)" pathLength="100" stroke-dasharray="100" stroke-dashoffset="3"/></svg><span class="v">97</span></div><div class="l">Sleep</div></div>
+            <div class="r"><div class="dial"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" fill="none" stroke="#4a3219" stroke-width="10"/><circle class="arc" data-v="63" cx="50" cy="50" r="42" fill="none" stroke="#ff9519" stroke-width="10" stroke-linecap="round" transform="rotate(-90 50 50)" pathLength="100" stroke-dasharray="100" stroke-dashoffset="37"/></svg><span class="v">63</span></div><div class="l">Activity</div></div>
+          </div>
+          <div class="foot"><span>Yesterday</span><span>HRV 47 ms, ring 57%</span></div>
+        </div>
+        <div class="lockp" role="img" aria-label="Lock Screen with readiness 92 and sleep 97"><div class="scr"><div class="inl">Readiness 92, Sleep 97</div><div class="time">9:41</div>
+          <svg viewBox="0 0 84 84"><circle cx="42" cy="42" r="36" fill="rgba(255,255,255,.08)"/><circle cx="42" cy="42" r="30" fill="none" stroke="rgba(255,255,255,.22)" stroke-width="6" stroke-dasharray="141 189" stroke-linecap="round" transform="rotate(135 42 42)"/><circle cx="42" cy="42" r="30" fill="none" stroke="#fff" stroke-width="6" stroke-dasharray="130 189" stroke-linecap="round" transform="rotate(135 42 42)"/><text x="42" y="50" text-anchor="middle" font-family="Archivo" font-weight="600" font-size="22" fill="#fff">92</text></svg></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="entry" data-sky="#eef0f2">
+  <div class="shell row">
+    <div>
+      <time class="clock" datetime="13:10">13:10</time>
+      <h2>See stress build up during the day, and see it go.</h2>
+      <p class="body">Time stressed, engaged, relaxed, and restored, a 48-hour timeline, and a resilience level from the last two weeks. These are open estimates from the ring's signals, not Oura's cloud scores, and the app says so.</p>
+    </div>
+    <figure><div class="device"><div class="scr"><img src="assets/app-stress.jpg" alt="Daytime stress: stressed, engaged, relaxed, restored, with a 48-hour timeline" loading="lazy"></div></div></figure>
+  </div>
+</section>
+
+<section class="entry" data-sky="#ebece9">
+  <div class="shell row">
+    <div>
+      <time class="clock" datetime="16:05">16:05</time>
+      <h2>Tag the late coffee. See what it does to the night.</h2>
+      <p class="body">Tag caffeine, alcohol, or a late meal. The app compares the nights after each tag with all your other nights, and shows only the differences that are clear.</p>
+    </div>
+    <figure><div class="device"><div class="scr"><img src="assets/app-insights.jpg" alt="Tags and insights: caffeine, alcohol, and a late meal against the other nights" loading="lazy"></div></div></figure>
+  </div>
+</section>
+
+<section class="entry" id="live" data-sky="#e6e2dd">
+  <div class="shell row">
+    <div>
+      <time class="clock" datetime="18:30">18:30</time>
+      <h2>A run, with your heart rate live from the ring.</h2>
+      <p class="body">Open Live and the ring sends every beat to your phone. Workouts from the ring, from Apple Health, and from your own entries go into one list, and none counts twice.</p>
+      <div class="bpm"><span class="n" id="bpm">60</span><span class="u">bpm</span></div>
+      <canvas id="ecg" aria-hidden="true"></canvas>
+      <p class="note">This trace is an animation. In the app, the beats come from your ring.</p>
+    </div>
+    <figure><div class="device"><div class="scr"><img src="assets/app-workouts.jpg" alt="Workouts from the ring and Apple Health in one list" loading="lazy"></div></div></figure>
+  </div>
+</section>
+
+<section class="entry" data-sky="#2a2f47">
+  <div class="shell row">
+    <div>
+      <time class="clock" datetime="21:00">21:00<small>Sunday</small></time>
+      <h2>Every Sunday, the week in plain words.</h2>
+      <p class="body">Weekly and monthly reports: averages, totals, and how each number moved against the week before.</p>
+    </div>
+    <figure><div class="device"><div class="scr"><img src="assets/app-report.jpg" alt="Weekly report with scores and sleep against the week before" loading="lazy"></div></div></figure>
+  </div>
+</section>
+
+<section class="entry" id="bedtime" data-sky="#121729">
+  <div class="shell row">
+    <div>
+      <time class="clock" datetime="22:30">22:30</time>
+      <h2>Your best nights start between 23:00 and 00:00.</h2>
+      <p class="body">The app finds the bedtime window of your best nights, and shows your sleep regularity and chronotype. It also says when to charge the ring, from the ring's own discharge rate. If the ring rolls under the bed, the finder shows its signal strength as you walk.</p>
+      <div class="batt" role="img" aria-label="Ring battery 57 percent, about 4 days left">
+        <div class="top"><span class="n">57%</span><span class="note">About 4 days left</span></div>
+        <svg viewBox="0 0 600 70" preserveAspectRatio="none" aria-hidden="true"><path d="M0 8 L115 58 L121 6 L255 60 L261 5 L400 57 L406 7 L540 50 L600 36" fill="none" stroke="#30d158" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg>
+      </div>
+    </div>
+    <figure><div class="device"><div class="scr"><img src="assets/app-bedtime.jpg" alt="Ideal bedtime 23:00 to 00:00, sleep regularity 86, and the chronotype" loading="lazy"></div></div></figure>
+  </div>
+</section>
+
+<section class="entry hub" id="hub" data-sky="#060a14">
+  <div class="shell row">
+    <div>
+      <time class="clock" datetime="23:47">23:47</time>
+      <h2>While you sleep, your own server keeps a copy.</h2>
+      <p class="body">This part is optional. One command installs the hub on a home server, a Steam Deck, or a Mac, and one QR scan connects the phone. Claude, Cursor, or any MCP client can then read your status, and how old the data is.</p>
+      <p class="body">The ring talks only to your iPhone. Data leaves the phone only when you connect your hub, and only your token opens it.</p>
+      <p class="tools">MCP tools: <code>get_status_now</code>, <code>get_sleep</code>, <code>get_trends</code>, <code>get_activity</code>, <code>get_watch</code>, <code>get_health_samples</code></p>
     </div>
     <div>
-      <div class="device"><div class="scr" id="screens">
-        <img src="assets/app-home-1.jpg" alt="Today: readiness 92, sleep 97, activity 63" class="on">
-        <img src="assets/app-sleep-detail.jpg" alt="A night: stages with heart rate, HRV, blood oxygen, temperature, and movement" loading="lazy">
-        <img src="assets/app-stress.jpg" alt="Daytime stress: stressed, engaged, relaxed, restored, with a 48-hour timeline" loading="lazy">
-        <img src="assets/app-bedtime.jpg" alt="Ideal bedtime 23:00 to 00:00, sleep regularity 86, chronotype" loading="lazy">
-        <img src="assets/app-insights.jpg" alt="Tags and insights: caffeine, alcohol, late meal against the other nights" loading="lazy">
-        <img src="assets/app-report.jpg" alt="Weekly report with scores and sleep against the week before" loading="lazy">
-        <img src="assets/app-workouts.jpg" alt="Workouts from the ring and Apple Health in one list" loading="lazy">
-      </div></div>
-      <p class="sample" style="margin-top:18px;text-align:center">Real app screens, sample data</p>
-    </div>
-  </div>
-</section>
-
-<!-- WIDGETS -->
-<section class="band widgets" id="widgets">
-  <div class="shell">
-    <div class="head reveal"><span class="kicker" style="color:var(--teal)">New · Widgets and Siri</span><h2>Your scores, before you open the app.</h2><p class="lead">Home Screen widgets in two sizes, Lock Screen widgets, and Siri answers for readiness, sleep score, and ring battery.</p></div>
-    <div class="board" id="board">
-      <div class="wsmall" id="wsmall"><img src="assets/widget-small.png" alt="Small widget: readiness 92, sleep 97, activity 63"></div>
-      <div class="wmed" id="wmed" role="img" aria-label="Medium widget: readiness 92, sleep 97, activity 63, HRV 47 ms, ring battery 57 percent">
-        <div class="rings">
-          <div class="r"><svg viewBox="0 0 150 150"><circle cx="75" cy="75" r="62" fill="none" stroke="#10454a" stroke-width="15"/><circle class="arc" data-v="92" cx="75" cy="75" r="62" fill="none" stroke="#12cddc" stroke-width="15" stroke-linecap="round" transform="rotate(-90 75 75)" stroke-dasharray="389.6" stroke-dashoffset="389.6"/></svg><div class="v" data-v="92">0</div><div class="l">Readiness</div></div>
-          <div class="r"><svg viewBox="0 0 150 150"><circle cx="75" cy="75" r="62" fill="none" stroke="#2b2660" stroke-width="15"/><circle class="arc" data-v="97" cx="75" cy="75" r="62" fill="none" stroke="#6e5bff" stroke-width="15" stroke-linecap="round" transform="rotate(-90 75 75)" stroke-dasharray="389.6" stroke-dashoffset="389.6"/></svg><div class="v" data-v="97">0</div><div class="l">Sleep</div></div>
-          <div class="r"><svg viewBox="0 0 150 150"><circle cx="75" cy="75" r="62" fill="none" stroke="#4a3219" stroke-width="15"/><circle class="arc" data-v="63" cx="75" cy="75" r="62" fill="none" stroke="#ff9519" stroke-width="15" stroke-linecap="round" transform="rotate(-90 75 75)" stroke-dasharray="389.6" stroke-dashoffset="389.6"/></svg><div class="v" data-v="63">0</div><div class="l">Activity</div></div>
-        </div>
-        <div class="foot"><span>Yesterday</span><span>HRV 47 ms · ring 57%</span></div>
-      </div>
-      <div class="lockp" id="lockp" role="img" aria-label="Lock Screen with a readiness gauge at 92"><div class="scr"><div class="inl">Readiness 92 · Sleep 97</div><div class="time">9:41</div>
-        <svg viewBox="0 0 84 84"><circle cx="42" cy="42" r="36" fill="rgba(255,255,255,.08)"/><circle cx="42" cy="42" r="30" fill="none" stroke="rgba(255,255,255,.22)" stroke-width="6" stroke-dasharray="141 189" stroke-linecap="round" transform="rotate(135 42 42)"/><circle cx="42" cy="42" r="30" fill="none" stroke="#fff" stroke-width="6" stroke-dasharray="130 189" stroke-linecap="round" transform="rotate(135 42 42)"/><text x="42" y="50" text-anchor="middle" font-family="Geist" font-weight="600" font-size="22" fill="#fff">92</text></svg></div></div>
-    </div>
-  </div>
-</section>
-
-<!-- LIVE HEART RATE -->
-<section class="band live" id="live">
-  <div class="shell">
-    <div class="grid">
-      <div class="reveal"><span class="kicker" style="color:var(--heart)">New · Live heart rate</span><h2 style="margin-top:18px">Beat by beat, straight from the ring.</h2><p class="lead" style="margin-top:22px">Open Live and the ring streams every beat to your phone. Use it for a check, a workout, or a breathing session. The ring goes back to its normal schedule when you stop.</p></div>
-      <div class="reveal"><div class="bpm"><span class="heart" id="heart"></span><span class="n" id="bpm">60</span><span class="u">bpm</span></div><p class="sample" style="margin-top:12px">Animation on this page. In the app the beats come from your ring.</p></div>
-    </div>
-    <canvas id="ecg" aria-hidden="true"></canvas>
-  </div>
-</section>
-
-<!-- RING PAGE -->
-<section class="band ringpage" id="ring">
-  <div class="shell">
-    <div class="head reveal"><span class="kicker" style="color:var(--green)">New · The ring page</span><h2>Know when to charge. Find it when it rolls away.</h2></div>
-    <div class="grid">
-      <div class="finder reveal" aria-hidden="true"><i></i><i></i><i></i><div class="core"></div></div>
-      <div class="batt reveal">
-        <span class="kicker">Ring battery</span>
-        <div style="display:flex;align-items:baseline;gap:12px;margin-top:14px"><span class="n" id="battN">57</span><span style="font-size:34px;color:var(--muted)">%</span></div>
-        <p class="lead" style="margin-top:8px">About 4 days left, from your ring's own discharge rate. A notification comes before it runs out. The finder shows the ring's signal strength as you walk.</p>
-        <svg viewBox="0 0 600 160" preserveAspectRatio="none" aria-hidden="true"><line x1="0" y1="159" x2="600" y2="159" stroke="rgba(255,255,255,.12)"/><path id="battPath" d="M0 20 L115 130 L121 16 L255 134 L261 14 L400 128 L406 18 L540 112 L600 84" fill="none" stroke="#30d158" stroke-width="3" stroke-linejoin="round" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1"/></svg>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- THE REST -->
-<section class="band rest" id="more" style="padding-top:0">
-  <div class="shell">
-    <div class="head reveal"><span class="kicker">And the rest</span><h2>Small things that make it a real app.</h2></div>
-    <div class="list">
-      <div class="item reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg><h3>Apple Health</h3><p>Writes measured data day by day with no duplicates, and reads Apple Watch workouts and VO₂ max.</p></div>
-      <div class="item reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 9a6 6 0 0 1 12 0c0 6 2 7 2 7H4s2-1 2-7"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><h3>Notifications</h3><p>Low battery, morning scores, a bedtime reminder, and a missed-sync alert. Decided on the phone.</p></div>
-      <div class="item reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8"/><path d="M8 12h8M12 8v8"/></svg><h3>Symptom Radar</h3><p>Flags nights where temperature, HRV, and resting heart rate move together, like the early signs of getting sick.</p></div>
-      <div class="item reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 12a8 8 0 1 0 8-8"/><path d="M4 4v5h5"/></svg><h3>Cycle and rest mode</h3><p>Log a period for cycle days and phases. Rest mode pauses activity goals on sick days.</p></div>
-      <div class="item reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 12h14M12 5l7 7-7 7"/></svg><h3>Siri and Shortcuts</h3><p>Ask for your readiness, your sleep score, or the ring battery.</p></div>
-      <div class="item reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg><h3>Export and restore</h3><p>CSV or JSON of every day and metric. Restore a new phone from your hub.</p></div>
-      <div class="item reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 15l3-3 2 2 3-4"/></svg><h3>Trends</h3><p>Any metric from the last 7 days to all of your history, against your own baseline.</p></div>
-      <div class="item reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3l7 4v5c0 4.5-3 8-7 9-4-1-7-4.5-7-9V7z"/></svg><h3>Your key only</h3><p>The ring pairs with a key made on your iPhone and kept in its Keychain. No Oura account.</p></div>
-    </div>
-  </div>
-</section>
-
-<!-- HUB + AGENT -->
-<section class="band hub" id="hub" style="padding-top:0">
-  <div class="shell">
-    <div class="grid">
-      <div class="reveal">
-        <span class="kicker" style="color:var(--rem)">Optional · Your hub</span>
-        <h2 style="margin-top:18px">Every night on your server. Your agent reads it.</h2>
-        <p class="lead" style="margin-top:22px">One command installs the hub on a home server, a Steam Deck, or a Mac. Scan a QR code to connect the phone. Claude, Cursor, or any MCP client gets your status, and knows how fresh it is.</p>
-        <div class="tools"><span>get_status_now</span><span>get_sleep</span><span>get_trends</span><span>get_activity</span><span>get_watch</span><span>get_health_samples</span></div>
-      </div>
-      <div class="reveal">
-        <div class="win"><div class="bar"><i></i><i></i><i></i></div><img src="assets/hub-sleep.jpg" alt="The hub's web app: a night with its hypnogram and vitals" loading="lazy"></div>
-        <div class="term" id="term"><span class="p">$</span> <span id="termCmd"></span>
-<span class="tool">get_status_now ✓</span>
-{ <span class="k">"last_night"</span>: { <span class="k">"in_bed_h"</span>: <span class="v">9.5</span>, <span class="k">"hrv_ms"</span>: <span class="v">74</span> },
+      <div class="win"><img src="assets/hub-sleep.jpg" alt="The hub's web app: a night with its stages and vitals" loading="lazy"></div>
+      <div class="term" id="term"><span class="p">$</span> <span id="termCmd"></span>
+<span class="ok">get_status_now: ok</span>
+{ <span class="k">"last_night"</span>: { <span class="k">"in_bed_h"</span>: <span class="v">7.8</span>, <span class="k">"hrv_ms"</span>: <span class="v">47</span> },
   <span class="k">"freshness"</span>: { <span class="k">"ring_last_sync_age_h"</span>: <span class="v">0.7</span> } }</div>
-      </div>
     </div>
   </div>
 </section>
 
-<!-- FILM -->
-<section class="band" id="film" style="padding-top:0">
+<section class="part" id="more" data-sky="#060a14">
   <div class="shell">
-    <div class="head reveal"><span class="kicker">The film</span><h2>49 seconds, ring to agent.</h2></div>
-    <div class="film reveal"><video src="video/open-oura-film/renders/open-oura-film-web.mp4" poster="video/open-oura-film/poster.jpg" controls playsinline preload="none" aria-label="Open Oura film: the ring, one night, the phone, the features, widgets, live heart rate, the ring page, the hub, and an AI agent"></video></div>
+    <div><h2>Also in the app</h2></div>
+    <dl class="also">
+      <div><dt>Apple Health</dt><dd>Writes measured data day by day with no duplicates, and reads Apple Watch workouts and VO₂ max.</dd></div>
+      <div><dt>Notifications</dt><dd>Low battery, morning scores, a bedtime reminder, and a missed-sync alert. The phone decides when.</dd></div>
+      <div><dt>Symptom Radar</dt><dd>Flags nights when temperature, HRV, and resting heart rate move together, like the early signs of getting sick.</dd></div>
+      <div><dt>Cycle and rest mode</dt><dd>Log a period for cycle days and phases. Rest mode pauses activity goals on sick days.</dd></div>
+      <div><dt>Trends</dt><dd>Any metric, from the last 7 days to all of your history, against your own baseline.</dd></div>
+      <div><dt>Export and restore</dt><dd>CSV or JSON of every day and metric. Restore a new phone from your hub.</dd></div>
+      <div><dt>Your key only</dt><dd>The ring pairs with a key made on your iPhone and kept in its Keychain. There is no Oura account.</dd></div>
+      <div><dt>Siri and Shortcuts</dt><dd>Ask for your readiness, your sleep score, or the ring battery.</dd></div>
+    </dl>
   </div>
 </section>
 
-<!-- DATA PATH -->
-<section class="band" id="privacy" style="padding-top:0">
+<section class="part film" id="film" data-sky="#060a14">
   <div class="shell">
-    <div class="head reveal"><span class="kicker">Where your data goes</span><h2>You decide every hop.</h2></div>
-    <div class="path" id="path">
-      <svg viewBox="0 0 1000 4" preserveAspectRatio="none" aria-hidden="true"><line id="pathLine" x1="24" y1="2" x2="976" y2="2" stroke="rgba(236,240,245,.25)" stroke-width="1.5" stroke-dasharray="4 6" vector-effect="non-scaling-stroke"/></svg>
-      <div class="stop reveal"><div class="dot"><i style="color:var(--teal);background:var(--teal)"></i></div><h3>Ring</h3><p>Measures heart rate, HRV, temperature, blood oxygen, and movement.</p></div>
-      <div class="stop reveal"><div class="dot"><i style="color:var(--blue);background:var(--blue)"></i></div><h3>iPhone</h3><p>Keeps the history, computes everything, and can write to Apple Health.</p></div>
-      <div class="stop reveal"><div class="dot"><i style="color:var(--green);background:var(--green)"></i></div><h3>Your hub <span class="opt">optional</span></h3><p>A full backup, a web app, and an MCP server. Only after you connect it.</p></div>
-      <div class="stop reveal"><div class="dot"><i style="color:var(--violet);background:var(--violet)"></i></div><h3>Your agent <span class="opt">optional</span></h3><p>Reads your status with your token. Nothing else gets in.</p></div>
-    </div>
+    <div><h2>The film, 49 seconds</h2></div>
+    <video src="video/open-oura-film/renders/open-oura-film-web.mp4" poster="video/open-oura-film/poster.jpg" controls playsinline preload="none" aria-label="Open Oura film: the ring, one night, the phone, the features, widgets, live heart rate, the ring page, the hub, and an AI agent"></video>
   </div>
 </section>
 
-<!-- SETUP -->
-<section class="band setup" id="setup" style="padding-top:0">
-  <div class="shell grid">
-    <div class="reveal"><span class="kicker">Setup</span><h2 style="margin-top:18px">Three steps. About 30 minutes.</h2><p class="lead" style="margin-top:22px">A Mac with Xcode, your iPhone and its cable, and the ring's charger. A free Apple ID works.</p><div style="margin-top:28px"><a class="btn solid" href="/setup">Read the full guide</a></div></div>
-    <ol class="steps3 reveal">
-      <li><div><h3>Install the app from your Mac</h3><p>Connect the iPhone and tap Trust. Then turn on Developer Mode: the switch shows after the Mac connects once. Run the script and keep the iPhone unlocked until the app opens.</p><div class="cmd"><code>git clone https://github.com/KenWuqianghao/open_health.git && cd open_health && ./apps/ios/install.sh</code><button class="copy" type="button">Copy</button></div><p>Then trust your Apple ID in Settings → General → VPN &amp; Device Management. With a free Apple ID, run the script again every 7 days.</p></div></li>
-      <li><div><h3>Reset the ring on its charger, then pair</h3><p>Sync the official app one last time, delete it, and forget the ring in Bluetooth. Put the ring on the powered dock for 2 seconds, then turn the dock over and back until each light shows.</p><div class="leds"><span><i style="color:#2f7bff;background:#2f7bff"></i>blue</span><span><i style="color:#ff453a;background:#ff453a"></i>red</span><span><i style="color:#bf5af2;background:#bf5af2"></i>purple</span><span><i style="color:#ffd60a;background:#ffd60a"></i>yellow</span></div><p>Yellow starts the reset. Blinking blue means it is done. Do not set the ring up in the official app again. In Open Oura, tap Scan for Rings, then Pair.</p></div></li>
-      <li><div><h3>Optional: run your hub, scan to connect</h3><p>One script on your server, then scan the QR code on the hub's Connect page.</p><div class="cmd"><code>git clone https://github.com/KenWuqianghao/oura-hub.git && cd oura-hub && ./deploy/install.sh</code><button class="copy" type="button">Copy</button></div></div></li>
+<section class="part" id="setup" data-sky="#060a14">
+  <div class="shell">
+    <div><h2>Set it up in about 30 minutes</h2><p class="body">You need a Mac with Xcode, your iPhone and its cable, and the ring's charger. A free Apple ID works.</p><p style="margin-top:26px"><a class="btn solid" href="/setup">Read the full guide</a></p></div>
+    <ol class="steps3">
+      <li><div><h3>Install the app from your Mac</h3><p>Connect the iPhone and tap Trust. Turn on Developer Mode: the switch shows after the Mac connects once. Run the script, and keep the iPhone unlocked until the app opens.</p><div class="cmd"><code>git clone https://github.com/KenWuqianghao/open_health.git && cd open_health && ./apps/ios/install.sh</code><button class="copy" type="button">Copy</button></div><p>Then trust your Apple ID in Settings → General → VPN &amp; Device Management. With a free Apple ID, run the script again every 7 days.</p></div></li>
+      <li><div><h3>Reset the ring on its charger, then pair</h3><p>Sync the official app one last time, delete it, and forget the ring in Bluetooth. Put the ring on the powered dock for 2 seconds, then turn the dock over and back until each light shows: <span class="leds"><i style="background:#2f7bff"></i>blue, <i style="background:#ff453a"></i>red, <i style="background:#bf5af2"></i>purple, <i style="background:#ffd60a"></i>yellow.</span></p><p>Yellow starts the reset. Blinking blue means it is done. Do not set the ring up in the official app again. In Open Oura, tap Scan for Rings, then Pair.</p></div></li>
+      <li><div><h3>Optional: run your hub and scan to connect</h3><p>Run one script on your server, then scan the QR code on the hub's Connect page.</p><div class="cmd"><code>git clone https://github.com/KenWuqianghao/oura-hub.git && cd oura-hub && ./deploy/install.sh</code><button class="copy" type="button">Copy</button></div></div></li>
     </ol>
   </div>
 </section>
 
-<!-- FAQ -->
-<section class="band faq" id="faq" style="padding-top:0">
-  <div class="shell grid">
-    <div class="reveal"><span class="kicker">Questions</span><h2 style="margin-top:18px">Before you reset your ring.</h2></div>
-    <div class="reveal">
+<section class="part faq" id="faq" data-sky="#060a14">
+  <div class="shell">
+    <div><h2>Before you reset your ring</h2></div>
+    <div>
       <details><summary>Can I still use the official Oura app?</summary><p>Not at the same time. A ring holds one key, so the reset removes Oura's key. To go back, reset the ring again and set it up in the official app. Sync the official app one last time before you switch.</p></details>
       <details><summary>Is anything sent to Oura or to you?</summary><p>No. The app talks to the ring over Bluetooth and keeps everything on the iPhone. It sends data to one place only: a hub you run, after you connect it.</p></details>
       <details><summary>Which rings and phones work?</summary><p>Oura Ring 3 (Gen3), Ring 4, and Ring 5, which use the same protocol. Pairing and sync were tested on a Ring 3 Horizon and a Ring 5. The app is iPhone only, iOS 17 or newer.</p></details>
@@ -438,18 +397,11 @@ footer nav { display: flex; gap: 22px; flex-wrap: wrap; } footer a { color: var(
   </div>
 </section>
 
-<section class="band" style="padding-top:0">
+<section class="part" id="credit" data-sky="#060a14">
   <div class="shell">
-    <div class="credit reveal">
-      <div><span class="kicker">Built on open work</span><h3 style="margin-top:12px;font-size:26px">The protocol work is by Thomas Marchand.</h3>
-        <p><a href="https://github.com/Th0rgal/open_oura">open_oura</a> by Thomas Marchand (<a href="https://x.com/thomasmc">@thomasmc</a>) reverse-engineered the ring's Bluetooth protocol, authentication, and event format, and ported the metric algorithms. Open Oura builds the iPhone app, the hub, and the setup on top.</p></div>
-      <div class="n">561★<div class="sample" style="text-align:inherit">Th0rgal/open_oura</div></div>
-    </div>
+    <div><h2>Built on Thomas Marchand's work</h2></div>
+    <p class="body" style="margin-top:0;max-width:60ch"><a href="https://github.com/Th0rgal/open_oura">open_oura</a> by Thomas Marchand (<a href="https://x.com/thomasmc">@thomasmc</a>) reverse-engineered the ring's Bluetooth protocol, its authentication, and its event format, and ported the metric algorithms. Open Oura builds the iPhone app, the hub, and the setup on top of it.</p>
   </div>
-</section>
-
-<section class="band final" style="padding-top:0">
-  <div class="shell reveal"><h2>Your data should<br>live where you do.</h2><div class="ctas"><a class="btn solid" href="/setup">Set it up</a><a class="btn" href="https://github.com/KenWuqianghao/open_health">View on GitHub</a></div></div>
 </section>
 </main>
 
@@ -467,10 +419,6 @@ const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
 const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x))
 const smooth = x => x * x * (3 - 2 * x)
 
-// nav
-const nav = document.getElementById('nav')
-addEventListener('scroll', () => nav.classList.toggle('solid', scrollY > 40), { passive: true })
-
 // copy buttons
 document.querySelectorAll('.copy').forEach(b => b.addEventListener('click', () => {
   const code = b.parentElement.querySelector('code')
@@ -479,8 +427,35 @@ document.querySelectorAll('.copy').forEach(b => b.addEventListener('click', () =
   try { navigator.clipboard.writeText(code.textContent).then(done, fallback) } catch { fallback() }
 }))
 
+// ── the sky: the page background follows the time of the section in view ──
+const nav = document.getElementById('nav'), canvas = document.getElementById('ringgl'), glow = document.querySelector('.hero .glow')
+const skies = [...document.querySelectorAll('[data-sky]')]
+const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16))
+const cols = skies.map(s => hex(s.dataset.sky))
+function paintSky() {
+  const vh = innerHeight, probe = scrollY + vh * 0.55
+  let c = cols[0].slice(), dawn = 0
+  for (let i = 1; i < skies.length; i++) {
+    const top = skies[i].getBoundingClientRect().top + scrollY
+    const t = smooth(clamp((probe - (top - vh * 0.3)) / (vh * 0.45)))
+    if (i === 1) dawn = t
+    if (t > 0) c = c.map((v, k) => v + (cols[i][k] - v) * t)
+  }
+  const css = `rgb(${c.map(Math.round).join(',')})`
+  document.body.style.background = css
+  document.documentElement.style.setProperty('--sky', css)
+  // One ink for the whole screen: dark on a bright sky, light on a dark one.
+  const lum = (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) / 255
+  document.body.dataset.tone = lum > 0.45 ? 'light' : 'dark'
+  // The ring's canvas is opaque (bloom), so it fades as the night ends.
+  canvas.style.opacity = glow.style.opacity = 1 - smooth(clamp(dawn * 3))
+  nav.classList.toggle('solid', scrollY > 40)
+}
+addEventListener('scroll', () => requestAnimationFrame(paintSky), { passive: true })
+addEventListener('resize', paintSky)
+paintSky()
+
 // ── hero: the 3D ring, scroll-driven ──
-const canvas = document.getElementById('ringgl')
 let ring = null
 try {
   const pr = Math.min(devicePixelRatio || 1, 1.75)
@@ -489,16 +464,16 @@ try {
 } catch (e) { canvas.style.display = 'none' }
 
 const hero = document.getElementById('hero')
-const intro = document.getElementById('intro'), night = document.getElementById('night'), streamL = document.getElementById('streamLayer'), hint = document.getElementById('hint')
+const intro = document.getElementById('intro'), night = document.getElementById('night'), streamL = document.getElementById('streamLayer')
 const lanes = [0, 1, 2, 3].map(i => document.getElementById('lane' + i))
 let prog = 0, target = 0, px = 0, pxT = 0, heroVisible = true
 addEventListener('pointermove', e => { pxT = (e.clientX / innerWidth - 0.5) }, { passive: true })
-ScrollTrigger.create({ trigger: hero, start: 'top top', end: 'bottom bottom', onUpdate: s => { target = s.progress }, onToggle: s => { heroVisible = s.isActive || s.progress < 1 } })
+ScrollTrigger.create({ trigger: hero, start: 'top top', end: 'bottom bottom', onUpdate: s => { target = s.progress } })
 new IntersectionObserver(es => { heroVisible = es[0].isIntersecting }).observe(hero)
 
-const mobile = () => innerWidth < 700
+const mobile = () => innerWidth < 760
 function heroState(p, t) {
-  // 0–.3 idle ring · .3–.62 turn face-on, particles fall into the night · .62–1 stream to the right
+  // 0–.3 idle ring, .3–.62 turn face-on and the particles fall into the night, .62–1 stream to the right
   const a = smooth(clamp((p - 0.28) / 0.26)), b = smooth(clamp((p - 0.62) / 0.3))
   const m = mobile()
   return {
@@ -524,47 +499,16 @@ function frame(now) {
   intro.style.opacity = 1 - smooth(clamp((prog - 0.08) / 0.2))
   intro.style.transform = `translateY(${-60 * clamp(prog / 0.3)}px)`
   night.style.opacity = smooth(clamp((prog - 0.4) / 0.12)) * (1 - smooth(clamp((prog - 0.62) / 0.1)))
-  streamL.style.opacity = smooth(clamp((prog - 0.72) / 0.12)) * (1 - smooth(clamp((prog - 0.93) / 0.07)))
-  hint.style.opacity = 1 - clamp(prog / 0.05)
-  canvas.style.opacity = 1 - smooth(clamp((prog - 0.9) / 0.1))
+  streamL.style.opacity = smooth(clamp((prog - 0.72) / 0.12))
 }
 requestAnimationFrame(frame)
 
-// ── story: one step per slice of the pinned section ──
-const steps = [...document.querySelectorAll('.story .step')], shots = [...document.querySelectorAll('#screens img')], bars = [...document.querySelectorAll('#rail b')]
-let cur = -1
-ScrollTrigger.create({ trigger: '#story', start: 'top top', end: 'bottom bottom', onUpdate: s => {
-  const f = s.progress * steps.length, i = Math.min(steps.length - 1, Math.floor(f))
-  bars.forEach((b, k) => b.style.width = (k < i ? 100 : k === i ? (f - i) * 100 : 0) + '%')
-  if (i === cur) return
-  cur = i
-  steps.forEach((el, k) => el.classList.toggle('on', k === i))
-  shots.forEach((el, k) => el.classList.toggle('on', k === i))
-} })
-steps[0].classList.add('on')
-
-// ── reveals ──
-if (!reduce) gsap.utils.toArray('.reveal').forEach(el => gsap.to(el, { opacity: 1, y: 0, duration: 1.1, ease: 'expo.out', scrollTrigger: { trigger: el, start: 'top 86%' } }))
-
-// ── widgets: rings draw, counters run, pieces fly in ──
-ScrollTrigger.create({ trigger: '#board', start: 'top 75%', once: true, onEnter: () => {
-  document.querySelectorAll('#wmed .arc').forEach((c, i) => gsap.to(c, { strokeDashoffset: 389.6 * (1 - c.dataset.v / 100), duration: reduce ? 0 : 1.6, delay: 0.3 + i * 0.12, ease: 'power3.out' }))
-  document.querySelectorAll('#wmed .v').forEach((el, i) => { const o = { n: 0 }; gsap.to(o, { n: +el.dataset.v, duration: reduce ? 0 : 1.6, delay: 0.3 + i * 0.12, ease: 'power3.out', onUpdate: () => el.textContent = Math.round(o.n) }) })
-  if (!reduce) {
-    gsap.from('#wmed', { y: 80, rotateX: 30, opacity: 0, duration: 1.2, ease: 'back.out(1.4)' })
-    gsap.from('#wsmall', { x: -120, rotate: -12, opacity: 0, duration: 1.2, delay: 0.3, ease: 'back.out(1.6)' })
-    gsap.from('#lockp', { x: 120, rotate: 10, opacity: 0, duration: 1.2, delay: 0.45, ease: 'back.out(1.6)' })
-  }
-} })
-if (!reduce) { gsap.to('#wsmall', { rotate: -5, y: -30, ease: 'none', scrollTrigger: { trigger: '#board', scrub: true } }); gsap.to('#lockp', { rotate: 5, y: -60, ease: 'none', scrollTrigger: { trigger: '#board', scrub: true } }) }
-
-// ── live heart rate: an ECG that beats while it is on screen ──
-const ecg = document.getElementById('ecg'), ctx = ecg.getContext('2d'), bpmEl = document.getElementById('bpm'), heartEl = document.getElementById('heart')
-let liveOn = false, bpm = 60, nextBeat = 0, lastT = 0, head = 0, trace = []
+// ── 18:30: an ECG that beats while it is on screen ──
+const ecg = document.getElementById('ecg'), ctx = ecg.getContext('2d'), bpmEl = document.getElementById('bpm')
+let liveOn = false, bpm = 60, nextBeat = 0, lastT = 0, head = 0, trace = [], beatPhase = 1e9
 new IntersectionObserver(es => { liveOn = es[0].isIntersecting }).observe(document.getElementById('live'))
 function sizeEcg() { const r = ecg.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); ecg.width = r.width * d; ecg.height = r.height * d; ctx.setTransform(d, 0, 0, d, 0, 0); trace = new Array(Math.ceil(r.width)).fill(0) }
 sizeEcg(); addEventListener('resize', sizeEcg)
-let beatPhase = 1e9
 function pqrst(x) { // x = seconds since the beat
   if (x < 0.06) return -0.08 * Math.sin(x / 0.06 * Math.PI)
   if (x < 0.1) return 1.0 * Math.sin((x - 0.06) / 0.04 * Math.PI)
@@ -579,37 +523,26 @@ function ecgFrame(now) {
   if (t >= nextBeat) {
     beatPhase = 0; bpm = Math.max(56, Math.min(64, bpm + (Math.sin(t * 1.7) > 0 ? 1 : -1) * (Math.sin(t * 3.1) > 0.3 ? 1 : 0)))
     bpmEl.textContent = bpm; nextBeat = t + 60 / bpm
-    heartEl.style.transform = 'scale(1)'; bpmEl.style.color = '#ff4d61'
-    setTimeout(() => { heartEl.style.transform = 'scale(.6)'; bpmEl.style.color = '' }, 160)
   }
   beatPhase += dt
   const w = trace.length, speed = 260, steps = Math.max(1, Math.round(dt * speed))
   for (let k = 0; k < steps; k++) { head = (head + 1) % w; trace[head] = pqrst(beatPhase - (steps - k) / speed) }
-  const r = ecg.getBoundingClientRect(), h = r.height, mid = h * 0.62
+  const r = ecg.getBoundingClientRect(), h = r.height, mid = h * 0.66
   ctx.clearRect(0, 0, r.width, h)
-  ctx.lineWidth = 2.5; ctx.lineJoin = 'round'; ctx.shadowColor = '#ff4d61'; ctx.shadowBlur = 14
+  ctx.lineWidth = 2; ctx.lineJoin = 'round'
   ctx.beginPath()
-  for (let x = 0; x < w; x++) { const i = (head + 1 + x) % w; const y = mid - trace[i] * h * 0.55; x ? ctx.lineTo(x, y) : ctx.moveTo(x, y) }
-  const g = ctx.createLinearGradient(0, 0, r.width, 0); g.addColorStop(0, 'rgba(255,77,97,0)'); g.addColorStop(0.7, 'rgba(255,77,97,.8)'); g.addColorStop(1, '#ff8a97')
+  for (let x = 0; x < w; x++) { const i = (head + 1 + x) % w; const y = mid - trace[i] * h * 0.58; x ? ctx.lineTo(x, y) : ctx.moveTo(x, y) }
+  const g = ctx.createLinearGradient(0, 0, r.width, 0); g.addColorStop(0, 'rgba(232,54,79,0)'); g.addColorStop(0.6, 'rgba(232,54,79,.85)'); g.addColorStop(1, '#e8364f')
   ctx.strokeStyle = g; ctx.stroke()
 }
 requestAnimationFrame(ecgFrame)
 
-// ── ring page: battery line draws, the number counts ──
-ScrollTrigger.create({ trigger: '#ring', start: 'top 70%', once: true, onEnter: () => {
-  gsap.to('#battPath', { strokeDashoffset: 0, duration: reduce ? 0 : 2.2, ease: 'power2.inOut' })
-  const o = { n: 0 }, el = document.getElementById('battN'); gsap.to(o, { n: 57, duration: reduce ? 0 : 1.6, ease: 'power3.out', onUpdate: () => el.textContent = Math.round(o.n) })
-} })
-
-// ── hub: the agent command types itself ──
+// ── 23:47: the agent command types itself once ──
 ScrollTrigger.create({ trigger: '#term', start: 'top 85%', once: true, onEnter: () => {
   const q = 'claude mcp add --transport http health https://…/mcp/<token>', el = document.getElementById('termCmd')
   if (reduce) { el.textContent = q; return }
   let i = 0; const id = setInterval(() => { el.textContent = q.slice(0, ++i); if (i >= q.length) clearInterval(id) }, 24)
 } })
-
-// ── data path: the line draws across ──
-if (!reduce) gsap.fromTo('#pathLine', { attr: { x2: 24 } }, { attr: { x2: 976 }, ease: 'none', scrollTrigger: { trigger: '#path', start: 'top 80%', end: 'top 40%', scrub: true } })
 </script>
 </body>
 </html>
