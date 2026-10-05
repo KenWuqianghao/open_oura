@@ -13,9 +13,12 @@ https://github.com/KenWuqianghao/open_health, which consumes these crates as git
 - `oura-link`: `Transport` trait, `OuraClient` (auth, sync drain, features, live
   streams), `pair::{probe, pair}`; btleplug behind the `ble` feature; a scripted
   `transport::mock::MockTransport` behind the `mock` feature.
-- `oura-analysis`: `ported::*` (ecore ports, cite the source address) and `beats`
-  (generic beat/window utilities).
+- `oura-analysis`: `ported::*` (ecore ports, cite the source address), `scores`,
+  `insights::*` (open estimates, cite the publication) and `beats` (generic
+  beat/window utilities).
 - `oura-store`: SQLite with `PRAGMA user_version` migrations (`SCHEMA_VERSION`).
+  `replication::BATCH_VERSION` is the version of a replication page; bump it only
+  when the rows of a page change shape.
 - `oura-cli`: the `oura` binary (`scan`, `probe`, `pair`, `info`, `sync`, …).
 
 ## Rules

@@ -760,6 +760,59 @@ fn decode_real_steps(body: &[u8]) -> Option<serde_json::Value> {
     Some(serde_json::json!({ "fields": fields, "_status": "part1_raw" }))
 }
 
+/// Join the two halves of one gait window into the 27 quantized columns that the
+/// `steps_motion_decoder` model reads: 3 global columns, then 3 blocks of 8.
+///
+/// `part1` is the body of `real_step_event_feature_1` (tag `0x7e`) and `part2` the
+/// body of the `real_step_event_feature_2` (tag `0x7f`) that the ring emits one
+/// tick later. The last byte of `part2` holds the low (carry) bits of the 9-bit and
+/// 10-bit columns. Layout from the native parser
+/// (`EventParser::parse_api_real_steps_features_1/2`).
+///
+/// Returns `None` when a half does not have 14 bytes.
+pub fn unpack_real_steps(part1: &[u8], part2: &[u8]) -> Option<[u16; 27]> {
+    if part1.len() != 14 || part2.len() != 14 {
+        return None;
+    }
+    let p1 = |i: usize| part1[i] as u16;
+    let p2 = |i: usize| part2[i] as u16;
+    let carry = p2(13);
+    let bit = |n: u16| (carry >> n) & 1;
+    Some([
+        // globals
+        (p2(10) << 2) | (carry & 0x3),
+        p2(11),
+        p2(12),
+        // block 1
+        (p1(0) << 1) | (p1(3) >> 7),
+        (p1(1) << 1) | bit(7),
+        (p1(2) << 1) | bit(6),
+        p1(3) & 0x7f,
+        p1(4),
+        p1(5),
+        p1(6),
+        p1(7),
+        // block 2
+        (p1(8) << 1) | (p1(11) >> 7),
+        (p1(9) << 1) | bit(5),
+        (p1(10) << 1) | bit(4),
+        p1(11) & 0x7f,
+        p1(12),
+        p1(13),
+        p2(0),
+        p2(1),
+        // block 3
+        (p2(2) << 1) | (p2(5) >> 7),
+        (p2(3) << 1) | bit(3),
+        (p2(4) << 1) | bit(2),
+        p2(5) & 0x7f,
+        p2(6),
+        p2(7),
+        p2(8),
+        p2(9),
+    ])
+}
+
 /// `aohr_event` (tag `0x86`): always-on HR. Header flag, a base offset, then a
 /// count and `count` 2-byte samples `(value, status)` at a fixed 1920 ms interval.
 fn decode_aohr(body: &[u8]) -> Option<serde_json::Value> {
@@ -955,7 +1008,11 @@ pub fn event_name(tag: u8) -> &'static str {
         0x8b => "spo2_r_pi_event",
         0x82 => "scan_start",
         0x83 => "scan_end",
+        0x84 => "ambient_event",
         0x85 => "rtc_beacon",
+        0x86 => "aohr_event",
+        0x87 => "atlas_metadata",
+        0x88 => "atlas_raw_bioz_data",
         _ => "unknown",
     }
 }
@@ -1137,6 +1194,32 @@ mod tests {
         assert_eq!(v["quality"].as_array().unwrap().len(), 6);
         assert_eq!(v["interval_ms"], 1920);
         assert_eq!(v["_status"], "unvalidated");
+    }
+
+    #[test]
+    fn names_the_tags_that_have_a_decoder() {
+        for tag in [0x84u8, 0x86, 0x87, 0x88] {
+            assert_ne!(event_name(tag), "unknown", "tag {tag:#04x}");
+        }
+        assert_eq!(event_name(0x86), "aohr_event");
+    }
+
+    #[test]
+    fn real_steps_halves_join_with_the_carry_byte() {
+        let mut p1 = [0u8; 14];
+        let mut p2 = [0u8; 14];
+        p1[0] = 0x81; // column 3 high bits
+        p1[3] = 0x85; // bit 7 = column 3 low bit, low 7 bits = column 6
+        p1[1] = 0x40; // column 4 high bits, low bit from carry bit 7
+        p2[10] = 0xff; // global 0 high bits
+        p2[13] = 0b1000_0011; // carry: bit 7 set, two low bits for global 0
+        let cols = unpack_real_steps(&p1, &p2).unwrap();
+        assert_eq!(cols[0], (0xff << 2) | 0x3);
+        assert_eq!(cols[3], (0x81 << 1) | 1);
+        assert_eq!(cols[4], (0x40 << 1) | 1);
+        assert_eq!(cols[5], 0);
+        assert_eq!(cols[6], 0x05);
+        assert!(unpack_real_steps(&p1[..13], &p2).is_none());
     }
 
     #[test]

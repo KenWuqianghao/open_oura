@@ -36,7 +36,13 @@ offline. The one genuine cloud-only step is **workout auto-classification**
 
 > **Those PyTorch models are Oura's proprietary IP and are NOT included in this
 > repo** (gitignored under `notes/models/`). The runners reference them by path; you
-> decrypt and supply your own locally. Nothing model-related is committed or pushed.
+> decrypt and supply your own locally. Nothing of Oura's models is committed or pushed.
+
+Without those models, the ring's own hypnogram (with deep sleep) and the NightSignal
+resting heart-rate alert still run. An open sleep stager (SleepECG's `wrn-gru-mesa`,
+BSD-3-Clause) is in the library but not in use: see
+[`docs/algorithms/open-sleep-staging.md`](docs/algorithms/open-sleep-staging.md) and
+[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
 ## Repository map
 

@@ -9,7 +9,12 @@ use rusqlite::{params, OptionalExtension};
 use serde::{Deserialize, Serialize};
 
 use crate::error::Result;
-use crate::storage::{Store, SCHEMA_VERSION};
+use crate::storage::Store;
+
+/// The format of an [`ExportBatch`]. It changes only when the rows in a batch
+/// change shape. A new table in the store does not change it, so a hub with an
+/// older store still accepts the batches of a newer phone.
+pub const BATCH_VERSION: i64 = 2;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DeviceRow {
@@ -143,7 +148,7 @@ impl Store {
         events.truncate(limit as usize);
         readings.truncate(limit as usize);
         Ok(ExportBatch {
-            schema_version: SCHEMA_VERSION,
+            schema_version: BATCH_VERSION,
             next_event_id: events.last().map(|e| e.id).unwrap_or(after_event_id),
             next_reading_id: readings.last().map(|r| r.id).unwrap_or(after_reading_id),
             more: more_events || more_readings,
@@ -235,7 +240,7 @@ mod tests {
     fn export_pages_in_id_order() {
         let s = seeded();
         let p1 = s.export_after(0, 0, 2).unwrap();
-        assert_eq!(p1.schema_version, SCHEMA_VERSION);
+        assert_eq!(p1.schema_version, BATCH_VERSION);
         assert_eq!(p1.devices.len(), 1);
         assert_eq!(p1.events.iter().map(|e| e.id).collect::<Vec<_>>(), [1, 2]);
         assert_eq!(p1.events[1].body_hex, "01ff");

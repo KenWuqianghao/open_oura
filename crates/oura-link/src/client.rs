@@ -780,16 +780,43 @@ impl<T: Transport> OuraClient<T> {
             .ok_or_else(|| Error::Protocol("no RData page response".into()))
     }
 
-    /// Enable live heart rate (daytime HR, `CONNECTED_LIVE`) and invoke `on_sample`
-    /// for each valid beat for up to `duration`. Restores `AUTOMATIC` mode on exit.
-    /// The ring must be worn for samples to appear.
+    /// Stream live heart rate for up to `duration`. See
+    /// [`Self::live_heart_rate_until`].
     pub async fn live_heart_rate<F>(
         &self,
         duration: Duration,
         debug: bool,
+        on_sample: F,
+    ) -> Result<()>
+    where
+        F: FnMut(HeartRateSample),
+    {
+        self.live_heart_rate_until(tokio::time::sleep(duration), debug, on_sample)
+            .await
+    }
+
+    /// Stream live heart rate and call `on_sample` for each valid beat until
+    /// `stop` completes. The ring must be worn for samples to appear.
+    ///
+    /// The sequence is the one the official app sends (Th0rgal/open_oura issue
+    /// 20): register the stream (`16 01 02`, `1c 01 bf`), then set daytime HR to
+    /// `CONNECTED_LIVE` with the `LATEST` subscription. A Ring 4 goes back to
+    /// `AUTOMATIC` after about 20 s, so the request is sent again every
+    /// [`LIVE_HR_BURST_EVERY`].
+    ///
+    /// On exit the ring gets `AUTOMATIC` and no subscription again, also when the
+    /// link failed (best effort). Live mode uses much more battery than normal
+    /// sensing, so a run must not leave it on.
+    ///
+    /// Returns an error when the inbound channel closed before `stop` completed.
+    pub async fn live_heart_rate_until<S, F>(
+        &self,
+        stop: S,
+        debug: bool,
         mut on_sample: F,
     ) -> Result<()>
     where
+        S: std::future::Future<Output = ()>,
         F: FnMut(HeartRateSample),
     {
         let mut rx = self.transport.subscribe();
@@ -797,33 +824,47 @@ impl<T: Transport> OuraClient<T> {
         while rx.try_recv().is_ok() {}
 
         self.transport
-            .write(&protocol::req_set_feature_mode(
-                feature::DAYTIME_HR,
-                feature_mode::CONNECTED_LIVE,
-            ))
+            .write(&protocol::req_stream_subscribe(0x02))
+            .await?;
+        self.transport
+            .write(&protocol::req_set_notification(0xbf))
             .await?;
 
-        let deadline = tokio::time::Instant::now() + duration;
+        tokio::pin!(stop);
+        let mut next_burst = tokio::time::Instant::now();
+        let mut outcome = Ok(());
         loop {
-            let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
-            if remaining.is_zero() {
-                break;
-            }
-            match tokio::time::timeout(remaining, rx.recv()).await {
-                Ok(Ok(frame)) => {
-                    if debug {
-                        eprintln!("raw notify: {}", hex::encode(&frame));
+            tokio::select! {
+                biased;
+                _ = &mut stop => break,
+                _ = tokio::time::sleep_until(next_burst) => {
+                    if let Err(e) = self.send_live_hr_burst().await {
+                        outcome = Err(e);
+                        break;
                     }
-                    if let Some(sample) = parse_live_hr_frame(&frame) {
-                        on_sample(sample);
-                    }
+                    next_burst = tokio::time::Instant::now() + LIVE_HR_BURST_EVERY;
                 }
-                Ok(Err(tokio::sync::broadcast::error::RecvError::Lagged(_))) => continue,
-                _ => break,
+                frame = rx.recv() => match frame {
+                    Ok(frame) => {
+                        if debug {
+                            eprintln!("raw notify: {}", hex::encode(&frame));
+                        }
+                        if let Some(sample) = parse_live_hr_frame(&frame) {
+                            on_sample(sample);
+                        }
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => {
+                        outcome = Err(Error::Protocol(
+                            "the link closed during the live heart rate stream".into(),
+                        ));
+                        break;
+                    }
+                },
             }
         }
 
-        // Best-effort restore to automatic mode.
+        // Best-effort restore: automatic measuring, no live subscription.
         let _ = self
             .transport
             .write(&protocol::req_set_feature_mode(
@@ -831,7 +872,31 @@ impl<T: Transport> OuraClient<T> {
                 feature_mode::AUTOMATIC,
             ))
             .await;
-        Ok(())
+        let _ = self
+            .transport
+            .write(&protocol::req_set_feature_subscription(
+                feature::DAYTIME_HR,
+                protocol::subscription_mode::OFF,
+            ))
+            .await;
+        outcome
+    }
+
+    /// One round of the live-HR request: daytime HR to `CONNECTED_LIVE`, then the
+    /// subscription a Ring 4 needs before it sends beats.
+    async fn send_live_hr_burst(&self) -> Result<()> {
+        self.transport
+            .write(&protocol::req_set_feature_mode(
+                feature::DAYTIME_HR,
+                feature_mode::CONNECTED_LIVE,
+            ))
+            .await?;
+        self.transport
+            .write(&protocol::req_set_feature_subscription(
+                feature::DAYTIME_HR,
+                protocol::subscription_mode::LATEST,
+            ))
+            .await
     }
 
     /// Stream live accelerometer samples (the "wave to test motion" path): enable
@@ -922,6 +987,10 @@ fn bpm_from_ibi(ibi_ms: u16) -> Option<u16> {
     }
 }
 
+/// How often the live-HR request is sent again. A Ring 4 goes back to `AUTOMATIC`
+/// after about 20 s.
+pub const LIVE_HR_BURST_EVERY: Duration = Duration::from_secs(15);
+
 /// Parse a daytime-HR live subscription notification (tag `0x2f`, sub-tag `0x28`).
 ///
 /// Frame layout: `[0]=0x2f [1]=len [2]=0x28(IND1) [3]=cap [4]=status [5]=state
@@ -956,6 +1025,36 @@ mod tests {
         let client = OuraClient::new(mock).with_quiet(Duration::from_millis(20));
         let info = client.firmware().await.unwrap();
         assert_eq!(info.firmware_version, "3.4.3");
+    }
+
+    #[tokio::test]
+    async fn live_heart_rate_streams_beats_and_restores_the_ring() {
+        // Frames from a Ring 4 (fw 2.12.5, Th0rgal/open_oura issue 20): a valid
+        // 733 ms beat (81 bpm), then a beat with validity 2, which is dropped.
+        let mock = MockTransport::new();
+        mock.on("2f03220203", &["2f03230200"]);
+        mock.on(
+            "2f03260202",
+            &[
+                "2f03270200",
+                "2f0f280201020000dd1200000000420c7f",
+                "2f0f280201020000b62300000000420c7f",
+            ],
+        );
+        let client = OuraClient::new(mock).with_quiet(Duration::from_millis(20));
+        let mut beats = Vec::new();
+        client
+            .live_heart_rate(Duration::from_millis(100), false, |s| {
+                beats.push((s.bpm, s.ibi_ms))
+            })
+            .await
+            .unwrap();
+        assert_eq!(beats, vec![(81, 733)]);
+        let writes: Vec<String> = client.transport().writes().iter().map(hex::encode).collect();
+        assert_eq!(
+            writes,
+            ["160102", "1c01bf", "2f03220203", "2f03260202", "2f03220201", "2f03260200"]
+        );
     }
 
     #[tokio::test]

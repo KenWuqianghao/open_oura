@@ -50,3 +50,7 @@ scope for a cloud-free client):
    decrypt with the recipe above.
 3. Train an independent staging model from the raw signals we *do* decode (HR/IBI,
    HRV, temperature, motion) - a from-scratch reimplementation, not a port.
+
+A client without the model uses the ring's own hypnogram pages (`sleep_phase_data`,
+`0x5a`), which have deep sleep. An open SleepECG port exists but is not in use; see
+[open-sleep-staging.md](open-sleep-staging.md).

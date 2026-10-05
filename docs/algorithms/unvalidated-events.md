@@ -29,6 +29,20 @@ fields. The handler `@ address` is cited in `crates/oura-protocol/src/events.rs`
 | `0x88` | atlas_raw_bioz_data | delta-coded i32 stream | same backend gate as `0x87` |
 | `0x61`/`0x11` | charging_time | u32 (units TBD) | **not emitted in normal use** — charge-end comes via `charging_ended_statistics` (0x20/0x27) instead; likely needs a full low→full cycle or is Ring-3-only |
 
+## No parser in the official library
+
+`activity_summary_1/2` (`0x51`/`0x52`), `recovery_summary` (`0x54`) and
+`sleep_heart_rate` (`0x55`) have names in the app's event table, but
+`libringeventparser.so` has no `parse_api_*` function for them. No layout is known,
+so their bodies stay raw. Step counts come from the `real_steps` features:
+`oura_protocol::events::unpack_real_steps` joins the two halves (`0x7e`, `0x7f`)
+into the 27 columns that the `steps_motion_decoder` model reads.
+
+`ehr_trace_event` (`0x73`) has a parser. Its 14 bytes are a message counter, a
+trace type, and four traces of `(freq1, freq2, 10 × pov)`. It is a diagnostic of
+the exercise heart rate tracker and does not carry a heart rate, so it is not
+decoded.
+
 ## Not decoded (low value / diagnostic only)
 
 `0x61` debug subtypes other than charging/battery (sleep_statistics `0x09`,

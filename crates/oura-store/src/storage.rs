@@ -17,7 +17,7 @@ use oura_protocol::events::RingEvent;
 /// migration step in [`Store::migrate`] whenever a table/index changes: the DB
 /// now ships inside the iOS app, so older files must upgrade in place and newer
 /// files must be refused rather than silently misread.
-pub const SCHEMA_VERSION: i64 = 2;
+pub const SCHEMA_VERSION: i64 = 3;
 
 const SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS device (
@@ -59,6 +59,20 @@ CREATE TABLE IF NOT EXISTS readings (
     captured_unix INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_readings_serial_kind ON readings(serial, kind);
+"#;
+
+/// v3: one value per `(serial, day, metric)`. `day` is the local date
+/// (`YYYY-MM-DD`) the value belongs to. The table is a cache of results computed
+/// from `events`; a client can drop every row and compute them again.
+const DAILY_SUMMARY_SCHEMA: &str = r#"
+CREATE TABLE IF NOT EXISTS daily_summary (
+    serial       TEXT NOT NULL,
+    day          TEXT NOT NULL,
+    metric       TEXT NOT NULL,
+    value        REAL NOT NULL,
+    updated_unix INTEGER NOT NULL,
+    PRIMARY KEY (serial, day, metric)
+) WITHOUT ROWID;
 "#;
 
 fn now_unix() -> i64 {
@@ -153,6 +167,10 @@ impl Store {
                  CREATE INDEX IF NOT EXISTS idx_events_serial_ts
                      ON events(serial, ring_timestamp);",
             )?;
+        }
+        if found < 3 {
+            // v3: the per-day metric cache.
+            self.conn.execute_batch(DAILY_SUMMARY_SCHEMA)?;
         }
         if found != SCHEMA_VERSION {
             let _ = self
@@ -292,6 +310,18 @@ impl Store {
         Ok(changed > 0)
     }
 
+    /// Insert many events in one transaction, each with its capture time, for
+    /// imports. Exact duplicates are ignored. Returns the number of rows added.
+    pub fn insert_events_at(&self, serial: &str, events: &[(RingEvent, i64)]) -> Result<usize> {
+        let tx = self.conn.unchecked_transaction()?;
+        let mut added = 0;
+        for (event, captured_unix) in events {
+            added += usize::from(self.insert_event_at(serial, event, *captured_unix)?);
+        }
+        tx.commit()?;
+        Ok(added)
+    }
+
     /// Record a scalar reading (e.g. live HR bpm, SpO2 %, battery %).
     pub fn insert_reading(&self, serial: &str, kind: &str, value: f64, unit: &str) -> Result<()> {
         self.conn.execute(
@@ -302,9 +332,90 @@ impl Store {
         Ok(())
     }
 
-    /// Convenience: store a battery reading.
+    /// Store a battery read: the charge level and the charge progress the ring
+    /// reports with it (0 when the ring is not on its charger).
     pub fn insert_battery(&self, serial: &str, battery: &Battery) -> Result<()> {
-        self.insert_reading(serial, "battery_percent", battery.percent as f64, "%")
+        self.insert_reading(serial, "battery_percent", battery.percent as f64, "%")?;
+        self.insert_reading(
+            serial,
+            "battery_charging_progress",
+            battery.charging_progress as f64,
+            "%",
+        )
+    }
+
+    /// Readings of one `kind` for `serial` as `(captured_unix, value)`, oldest
+    /// first, optionally only those captured after `captured_after`.
+    pub fn readings(
+        &self,
+        serial: &str,
+        kind: &str,
+        captured_after: Option<i64>,
+    ) -> Result<Vec<(i64, f64)>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT captured_unix, value FROM readings \
+             WHERE serial = ?1 AND kind = ?2 AND captured_unix > ?3 \
+             ORDER BY captured_unix, id",
+        )?;
+        let rows = stmt
+            .query_map(
+                params![serial, kind, captured_after.unwrap_or(i64::MIN)],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        Ok(rows)
+    }
+
+    /// Write daily metrics as `(day, metric, value)` rows in one transaction. A
+    /// metric that is already stored for that day gets the new value; stored
+    /// metrics that are not in `rows` stay as they are. A value that is not finite
+    /// is skipped. Returns the number of rows written.
+    pub fn upsert_daily(&self, serial: &str, rows: &[(&str, &str, f64)]) -> Result<usize> {
+        let tx = self.conn.unchecked_transaction()?;
+        let now = now_unix();
+        let mut written = 0;
+        {
+            let mut stmt = tx.prepare(
+                "INSERT INTO daily_summary (serial, day, metric, value, updated_unix)
+                 VALUES (?1, ?2, ?3, ?4, ?5)
+                 ON CONFLICT(serial, day, metric) DO UPDATE SET
+                   value=excluded.value, updated_unix=excluded.updated_unix",
+            )?;
+            for (day, metric, value) in rows {
+                if value.is_finite() {
+                    written += stmt.execute(params![serial, day, metric, value, now])?;
+                }
+            }
+        }
+        tx.commit()?;
+        Ok(written)
+    }
+
+    /// Stored metrics for `serial` as `(day, metric, value)` for the days from
+    /// `from_day` to `to_day` (both included, `YYYY-MM-DD`), ordered by day.
+    pub fn daily_range(
+        &self,
+        serial: &str,
+        from_day: &str,
+        to_day: &str,
+    ) -> Result<Vec<(String, String, f64)>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT day, metric, value FROM daily_summary \
+             WHERE serial = ?1 AND day >= ?2 AND day <= ?3 ORDER BY day, metric",
+        )?;
+        let rows = stmt
+            .query_map(params![serial, from_day, to_day], |r| {
+                Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+            })?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        Ok(rows)
+    }
+
+    /// Delete the stored metrics of `serial`. The next summary writes them again.
+    pub fn clear_daily(&self, serial: &str) -> Result<usize> {
+        Ok(self
+            .conn
+            .execute("DELETE FROM daily_summary WHERE serial = ?1", params![serial])?)
     }
 
     /// Re-decode every stored event body with the current decoders, updating
@@ -398,6 +509,50 @@ impl Store {
         let mut stmt = self.conn.prepare(&sql)?;
         let rows = stmt
             .query_map(params![serial], |r| {
+                Ok((
+                    r.get::<_, i64>(0)?,
+                    r.get::<_, i64>(1)?,
+                    r.get::<_, i64>(2)? as u8,
+                    r.get::<_, String>(3)?,
+                    r.get::<_, i64>(4)?,
+                ))
+            })?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        Ok(rows)
+    }
+
+    /// Decoded events for `serial` whose ring timestamp is in `from_ds..to_ds`
+    /// (deciseconds, end not included), as `(id, ring_timestamp, tag,
+    /// decoded_json, captured_unix)` in ring-time order, optionally restricted to
+    /// `tags`.
+    ///
+    /// The ring clock restarts after a factory reset, so one range can match
+    /// events from more than one clock epoch. Use `captured_unix` to tell them
+    /// apart.
+    #[allow(clippy::type_complexity)]
+    pub fn decoded_events_in_ring_range(
+        &self,
+        serial: &str,
+        tags: Option<&[u8]>,
+        from_ds: i64,
+        to_ds: i64,
+    ) -> Result<Vec<(i64, i64, u8, String, i64)>> {
+        let mut sql = String::from(
+            "SELECT id, ring_timestamp, tag, decoded_json, captured_unix FROM events \
+             WHERE serial = ?1 AND ring_timestamp >= ?2 AND ring_timestamp < ?3 \
+             AND decoded_json IS NOT NULL",
+        );
+        if let Some(tags) = tags {
+            if tags.is_empty() {
+                return Ok(Vec::new());
+            }
+            let list: Vec<String> = tags.iter().map(|t| t.to_string()).collect();
+            sql.push_str(&format!(" AND tag IN ({})", list.join(",")));
+        }
+        sql.push_str(" ORDER BY ring_timestamp, id");
+        let mut stmt = self.conn.prepare(&sql)?;
+        let rows = stmt
+            .query_map(params![serial, from_ds, to_ds], |r| {
                 Ok((
                     r.get::<_, i64>(0)?,
                     r.get::<_, i64>(1)?,
@@ -608,6 +763,86 @@ mod tests {
     }
 
     #[test]
+    fn version_2_file_gets_the_daily_table() {
+        let dir = std::env::temp_dir().join(format!("oura-store-v2-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("v2.db");
+        let _ = std::fs::remove_file(&path);
+        {
+            let conn = Connection::open(&path).unwrap();
+            conn.execute_batch(SCHEMA).unwrap();
+            conn.execute_batch("PRAGMA user_version = 2;").unwrap();
+        }
+        let store = Store::open(&path).unwrap();
+        assert_eq!(store.schema_version().unwrap(), 3);
+        store.upsert_daily("S1", &[("2026-09-27", "hrv_ms", 41.0)]).unwrap();
+        assert_eq!(store.daily_range("S1", "2026-09-27", "2026-09-27").unwrap().len(), 1);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn daily_metrics_upsert_and_read_by_day_range() {
+        let store = Store::open_in_memory().unwrap();
+        let written = store
+            .upsert_daily(
+                "S1",
+                &[
+                    ("2026-09-26", "hrv_ms", 40.0),
+                    ("2026-09-26", "rhr", 52.0),
+                    ("2026-09-27", "hrv_ms", 44.0),
+                    ("2026-09-27", "bad", f64::NAN),
+                ],
+            )
+            .unwrap();
+        assert_eq!(written, 3);
+        store.upsert_daily("S1", &[("2026-09-26", "hrv_ms", 42.0)]).unwrap();
+        store.upsert_daily("S2", &[("2026-09-26", "hrv_ms", 99.0)]).unwrap();
+        let rows = store.daily_range("S1", "2026-09-26", "2026-09-27").unwrap();
+        assert_eq!(
+            rows,
+            [
+                ("2026-09-26".to_string(), "hrv_ms".to_string(), 42.0),
+                ("2026-09-26".to_string(), "rhr".to_string(), 52.0),
+                ("2026-09-27".to_string(), "hrv_ms".to_string(), 44.0),
+            ]
+        );
+        assert_eq!(store.daily_range("S1", "2026-09-27", "2026-09-30").unwrap().len(), 1);
+        assert_eq!(store.clear_daily("S1").unwrap(), 3);
+        assert_eq!(store.daily_range("S2", "2026-09-01", "2026-09-30").unwrap().len(), 1);
+    }
+
+    #[test]
+    fn ring_range_and_readings_queries() {
+        let store = Store::open_in_memory().unwrap();
+        let mk = |tag: u8, ts: u32| RingEvent {
+            tag,
+            name: oura_protocol::events::event_name(tag),
+            timestamp: ts,
+            body: vec![tag, ts as u8],
+            decoded: Some(serde_json::json!({"ts": ts})),
+        };
+        for (tag, ts) in [(0x5d, 100), (0x47, 150), (0x5d, 200), (0x5d, 300)] {
+            store.insert_event("S1", &mk(tag, ts)).unwrap();
+        }
+        let hits = store
+            .decoded_events_in_ring_range("S1", Some(&[0x5d]), 100, 300)
+            .unwrap();
+        assert_eq!(hits.iter().map(|h| h.1).collect::<Vec<_>>(), [100, 200]);
+        assert_eq!(
+            store.decoded_events_in_ring_range("S1", None, 0, 1_000).unwrap().len(),
+            4
+        );
+        let battery = Battery { percent: 61, charging_progress: 12, charging_recommended: 0 };
+        store.insert_battery("S1", &battery).unwrap();
+        let levels = store.readings("S1", "battery_percent", None).unwrap();
+        assert_eq!(levels.len(), 1);
+        assert_eq!(levels[0].1, 61.0);
+        let progress = store.readings("S1", "battery_charging_progress", None).unwrap();
+        assert_eq!(progress[0].1, 12.0);
+        assert!(store.readings("S1", "battery_percent", Some(i64::MAX - 1)).unwrap().is_empty());
+    }
+
+    #[test]
     fn legacy_file_migrates_in_place_and_newer_file_is_refused() {
         let dir = std::env::temp_dir().join(format!("oura-store-mig-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
@@ -657,11 +892,13 @@ mod tests {
             .decoded_events_filtered("S1", Some(&[0x42]), None)
             .unwrap();
         assert_eq!(only_42.len(), 2);
+        let more = [(mk(0x42, 30, 4), 4_000), (mk(0x42, 20, 3), 4_000)];
+        assert_eq!(store.insert_events_at("S1", &more).unwrap(), 1);
         let recent = store
             .decoded_events_filtered("S1", None, Some(1_500))
             .unwrap();
-        assert_eq!(recent.len(), 2);
-        assert_eq!(store.newest_captured_unix("S1").unwrap(), Some(3_000));
+        assert_eq!(recent.len(), 3);
+        assert_eq!(store.newest_captured_unix("S1").unwrap(), Some(4_000));
         assert_eq!(store.newest_captured_unix("nope").unwrap(), None);
         store.set_cursor("S1", 77).unwrap();
         store.reset_cursor("S1").unwrap();
