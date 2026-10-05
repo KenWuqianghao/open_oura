@@ -83,6 +83,40 @@ bundled events on extended sync. The parser must walk the whole notification or
 bundle. The persisted cursor (`nextEventToSync`) makes sync incremental.
 `sleepAnalysisProgress` is surfaced as progress only, not a block.
 
+### Legacy summary (`0x11`) and its result code
+
+A Ring 3 sends an 8-byte payload in the legacy summary:
+
+```
+events_received:u8, sleep_progress:u8, bytes_left:u32 LE, buffer_id:u8, result:u8
+```
+
+The last two bytes are in the same positions as `buffer_id` and `result` of the
+`0x42` confirmation (see below). The names come from that layout. Some rings send
+a 6-byte payload without the two bytes.
+
+| Frame | Events | Bytes left | Tail | Meaning |
+| --- | --- | --- | --- | --- |
+| `1108ff002cbe62000300` | 255 | 6471212 | `03 00` | Normal batch. |
+| `11080007000000000311` | 0 | 0 | `03 11` | Request refused (cursor 5418433). |
+| `1108001f000000000311` | 0 | 0 | `03 11` | Request refused (cursor 0). |
+
+The two refused frames are from a Gen3 ring (BLB_03, fw 3.4.3) on 2026-09-29.
+The ring sent them for each `GetEvent` request, also for cursor 0. One day later
+the same ring served 6.4 MB of history from cursor 0 with the tail `03 00`, and
+the history has no `ring_start` event for that time. Thus the ring held the
+history and did not serve it. The meaning of the code `0x11` is not known.
+
+Rules for a client:
+
+- A non-zero result code is an error, not an empty batch. `oura-link` returns
+  `Error::HistoryRejected { api, code }` for the legacy summary and for the
+  extended confirmation (the known extended code is `0xff`).
+- Do not send the ack-fetch after a refused request.
+- Do not change the saved cursor. A refused request is not proof that the
+  cursor is absent on the ring. Do not start a drain from cursor 0 because of it.
+- Do the sync again later.
+
 Two places where `oura-link` deliberately deviates from the app's literal
 behavior (2026-07-04):
 
@@ -113,6 +147,9 @@ The `0x42` confirmation layout is confirmed:
 ```
 events_received:u16, sleep_progress:u8, bytes_left:u32, buffer_id:u8, result:u8
 ```
+
+A non-zero `result` is a refused request (`0xff` on a Ring 5 for a cursor that
+it does not accept). See "Legacy summary (`0x11`) and its result code".
 
 The `0x43` data path is confirmed on Ring 5. Android accumulates length-prefixed
 envelopes into `GetEventSummary.Extended.rawBuffer`; each completed envelope is
@@ -159,6 +196,7 @@ Validation on 2026-07-01:
 6. (optional) firmware / product / battery for metadata.
 7. DataFlush, then drain history events from the persisted cursor; persist each
    event, ack with `GetEvent(max_events=0)`, and advance the cursor; stop when
-   `bytes_left == 0`.
+   `bytes_left == 0`. Stop with an error, and keep the cursor, when the summary
+   has a non-zero result code.
 
 Do not issue any RData (0x03) for a normal pull.

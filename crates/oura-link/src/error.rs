@@ -29,6 +29,12 @@ pub enum Error {
     /// "production tests missing" in the official app.
     #[error("set_auth_key rejected with status {0:#04x}")]
     SetKeyRejected(u8),
+    /// The ring ended a history request with a non-zero result code in the
+    /// summary (`api` is `legacy` for tag `0x11`, `extended` for ext `0x42`).
+    /// The ring answered, so the link is not lost. This is not an empty batch:
+    /// the ring can hold history that it did not serve.
+    #[error("{api} history request failed with result code {code:#04x}")]
+    HistoryRejected { api: &'static str, code: u8 },
     #[error("protocol error: {0}")]
     Protocol(String),
     #[error(transparent)]

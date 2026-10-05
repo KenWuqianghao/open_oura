@@ -74,7 +74,8 @@ All rows below were tested on the Horizon unless noted otherwise.
 | Serial old offset | `1803040010` | `19110007000000585858585858585858585858` | Prefix bytes then `XXXXXXXXXXXX`. |
 | Serial | `1803080010` | `19110058585858585858585858585858580000` | Serial `XXXXXXXXXXXXXX`. |
 | Get events unauthenticated | `10090000000008ffffffff` | `2f022f01` | Protocol auth required. |
-| Get events after auth | same | event packets then `110808009e0e00000300` | Returned 8 packets, summary says 8 events and 3742 bytes left. |
+| Get events after auth | same | event packets then `110808009e0e00000300` | Returned 8 packets, summary says 8 events and 3742 bytes left. Tail `03 00`: buffer `3`, result `0`. |
+| Get events refused (2026-09-29) | `1009c1ad5200ffffffffff` | `11080007000000000311` | 0 events, 0 bytes left, result `0x11`. The ring held history and did not serve it. Same reply for cursor 0 (`1108001f000000000311`). Meaning of `0x11` not known. See `sync-orchestration.md`. |
 | Sync time | `1209 <u64 timestamp> 00` | `13053d36000000` | Success-shaped response; payload not fully decoded. |
 | Set notifications none | `1c0100` | `1d0100` | ACK success. |
 | Set notifications all | `1c013f` | `1d0100`, then `1f0420080000` | ACK then notification-state/event packet; restored after testing `0x00`. |

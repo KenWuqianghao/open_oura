@@ -26,17 +26,21 @@ sleep stages, activity MET levels, and HRV.
 The ring itself does **not** emit the 0-100 Readiness / Sleep / Activity / Stress
 scores. But those are **not** computed in
 Oura's cloud either: they're computed **on the phone** by the native `ecore`
-engine and a set of on-device PyTorch models (the same `.pt` we run here), then
+engine and a set of on-device PyTorch models, then
 uploaded; the cloud only stores and syncs them back. So they're reproducible
 offline. The one genuine cloud-only step is **workout auto-classification**
 (`POST /api/activity-tagging/v2`). See
 [`docs/data-recovery-map.md`](docs/data-recovery-map.md),
-[`docs/algorithms/README.md`](docs/algorithms/README.md), and
-[`docs/model-runners.md`](docs/model-runners.md) for what runs.
+and [`docs/algorithms/README.md`](docs/algorithms/README.md).
 
-> **Those PyTorch models are Oura's proprietary IP and are NOT included in this
-> repo** (gitignored under `notes/models/`). The runners reference them by path; you
-> decrypt and supply your own locally. Nothing model-related is committed or pushed.
+> **Those PyTorch models are Oura's proprietary IP. This repository has no model
+> file and no code that runs one.**
+
+Without those models, the ring's own hypnogram (with deep sleep) and the NightSignal
+resting heart-rate alert still run. An open sleep stager (SleepECG's `wrn-gru-mesa`,
+BSD-3-Clause) is in the library but not in use: see
+[`docs/algorithms/open-sleep-staging.md`](docs/algorithms/open-sleep-staging.md) and
+[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
 ## Repository map
 
@@ -91,8 +95,6 @@ State-changing and destructive commands are hidden behind `--include-state` and
 - [`docs/ring-features.md`](docs/ring-features.md): the feature capabilities, runtime
   modes, what's on by default, and which event each enabled feature produces (incl.
   what `experimental` does — and doesn't).
-- [`docs/cva-cardiovascular-age.md`](docs/cva-cardiovascular-age.md): decoding the raw
-  PPG (`cva_raw_ppg_data` 0x81) and running the cardiovascular-age model.
 - [`docs/spo2-calibration.md`](docs/spo2-calibration.md): turning the SpO2 R-ratio into
   a percentage with Oura's own calibration.
 - [`docs/firmware-update.md`](docs/firmware-update.md): the DFU/OTA opcodes, the

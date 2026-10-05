@@ -35,6 +35,48 @@ pub fn beats_from_record(t0_s: f64, ibi_ms: &[u16], good: impl Fn(usize) -> bool
     out
 }
 
+/// One IBI record as the ring stores it: its time, the intervals, and the quality
+/// gate of each interval.
+#[derive(Clone, Debug, PartialEq)]
+pub struct IbiRecord {
+    pub t0_s: f64,
+    pub ibi_ms: Vec<u16>,
+    pub good: Vec<bool>,
+}
+
+/// The beats of a continuous stream of records, as (beat time in seconds, RR
+/// interval in seconds), in beat order.
+///
+/// The ring writes one record after the other, and the record time has a resolution
+/// of 0.1 s. Beats that are placed from each record time alone can overlap the next
+/// record, which puts the intervals out of order. Here a record that starts where
+/// the one before ended (within 1.5 s) continues its clock, so the intervals stay
+/// in sequence. A larger gap starts again at the record time. An interval that is
+/// not `good`, or not in 300..=2000 ms, moves the clock but gives no beat.
+pub fn chained_intervals(records: &[IbiRecord]) -> Vec<(f64, f64)> {
+    let mut order: Vec<&IbiRecord> = records.iter().filter(|r| !r.ibi_ms.is_empty()).collect();
+    order.sort_by(|a, b| a.t0_s.total_cmp(&b.t0_s));
+    let mut out = Vec::new();
+    let mut last: Option<f64> = None;
+    for record in order {
+        let first = record.ibi_ms[0] as f64 / 1000.0;
+        let mut t = match last {
+            Some(end) if (record.t0_s - (end + first)).abs() <= 1.5 => end + first,
+            _ => record.t0_s,
+        };
+        for (i, &ibi) in record.ibi_ms.iter().enumerate() {
+            if i > 0 {
+                t += ibi as f64 / 1000.0;
+            }
+            if record.good.get(i).copied().unwrap_or(true) && (300..=2000).contains(&ibi) {
+                out.push((t, ibi as f64 / 1000.0));
+            }
+        }
+        last = Some(t);
+    }
+    out
+}
+
 /// Statistics over one fixed window of beats.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct WindowStat {
@@ -135,5 +177,21 @@ mod tests {
         assert_eq!(stats.len(), 1);
         assert!((stats[0].sdnn_ms.unwrap() - 12.9099).abs() < 1e-3);
         assert!((stats[0].rmssd_ms.unwrap() - 17.3205).abs() < 1e-3);
+    }
+
+    #[test]
+    fn chained_records_keep_the_intervals_in_sequence() {
+        let rec = |t0_s: f64, ibi_ms: &[u16]| IbiRecord { t0_s, ibi_ms: ibi_ms.to_vec(), good: vec![] };
+        // the second record's time is 0.4 s early (0.1 s clock, late write); the
+        // third comes after a gap
+        let out = chained_intervals(&[
+            rec(100.0, &[1000, 1000, 1000]),
+            rec(102.6, &[1000, 900, 250]),
+            rec(200.0, &[800, 800]),
+        ]);
+        let times: Vec<f64> = out.iter().map(|b| (b.0 * 10.0).round() / 10.0).collect();
+        assert_eq!(times, [100.0, 101.0, 102.0, 103.0, 103.9, 200.0, 200.8]);
+        assert!(out.windows(2).all(|w| w[0].0 < w[1].0));
+        assert_eq!(out[4].1, 0.9); // the 250 ms artifact gives no beat
     }
 }

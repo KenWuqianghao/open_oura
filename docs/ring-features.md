@@ -29,7 +29,7 @@ Two different things are easy to confuse:
 | RESTING_HR | 0x08 | **AUTOMATIC** | ✅ on for everyone | resting HR |
 | REAL_STEPS | 0x0b | **AUTOMATIC** | ❌ off by default (server-flag gated) — we enabled it | `real_step_event_feature_1/2` (0x7e/0x7f) → stepmotion |
 | EXERCISE_HR | 0x03 | **AUTOMATIC** | ❌ not in default set — we enabled it | `ehr_trace_event` 0x73 + `ehr_acm_intensity_event` 0x74 |
-| CVA_PPG_SAMPLER | 0x0d | **AUTOMATIC** | ❌ not in default set — we enabled it | **`cva_raw_ppg_data` 0x81** (raw PPG → CVA model; see [cva-cardiovascular-age.md](cva-cardiovascular-age.md)) |
+| CVA_PPG_SAMPLER | 0x0d | **AUTOMATIC** | ❌ not in default set — we enabled it | **`cva_raw_ppg_data` 0x81** (raw PPG → CVA model) |
 | EXPERIMENTAL | 0x0c | **AUTOMATIC** | ❌ not in default set — we enabled it | **— (firmware-only gate; no app-visible event type)** |
 
 A *stock* ring has **DAYTIME_HR + SPO2 + RESTING_HR** running automatically (plus

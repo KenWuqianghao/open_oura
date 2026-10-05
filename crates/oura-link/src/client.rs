@@ -475,6 +475,11 @@ impl<T: Transport> OuraClient<T> {
     /// a completed sync: the summary is the ring's explicit terminator, so its
     /// absence means the link died mid-batch. Callers should reconnect and call
     /// again — the persisted cursor makes that resume, not restart.
+    ///
+    /// A summary with a non-zero result code is [`Error::HistoryRejected`], not
+    /// an empty batch: the ring refused the request and can hold history. The
+    /// failed batch does not reach `on_event` or `on_batch`. Callers must keep
+    /// the saved cursor. It is not proof that the cursor is absent on the ring.
     pub async fn drain_events<F, G>(
         &self,
         cursor: u32,
@@ -546,11 +551,14 @@ impl<T: Transport> OuraClient<T> {
                 );
             }
 
-            let batch = decode_batch(&packets).map_err(|e| {
-                Error::Protocol(format!(
+            let batch = decode_batch(&packets).map_err(|e| match e {
+                // The ring answered and refused the request: the link is not lost.
+                // `on_batch` does not run, so the caller keeps its checkpoint.
+                Error::HistoryRejected { .. } => e,
+                e => Error::Protocol(format!(
                     "{e} — BLE link lost mid-batch? cursor {start} is checkpointed; \
                      reconnect and sync again to resume"
-                ))
+                )),
             })?;
             let batch = validate_batch(batch, start);
             for ev in &batch.events {
@@ -587,6 +595,9 @@ impl<T: Transport> OuraClient<T> {
             // On the legacy API the next pass is the ack-fetch: it acknowledges this
             // batch and pulls the next one, so no separate acknowledgement is sent.
             // ExtGetEvent is cursor-driven and completes its own batch.
+            if progressed && batch.only_request_log_left() {
+                break; // drained: only the ring's own records of our requests are new
+            }
             if !progressed {
                 if bytes_left == 0 {
                     break; // drained: a pass returned nothing and the ring agrees
@@ -600,7 +611,8 @@ impl<T: Transport> OuraClient<T> {
             // Horizon (fw 3.4.3) reports 0 on the first batch and keeps serving
             // events on the next request, which used to leave a night's data on
             // the ring. Keep pulling until a pass comes back empty; on rings that
-            // report accurately this costs one extra empty round-trip.
+            // report accurately this costs one extra empty round-trip. The one
+            // exception is a batch of only `debug_data` records (handled above).
             if bytes_left == 0 {
                 tracing::debug!(cursor = start, "ring reports drained; confirming with one more pass");
             }
@@ -776,16 +788,43 @@ impl<T: Transport> OuraClient<T> {
             .ok_or_else(|| Error::Protocol("no RData page response".into()))
     }
 
-    /// Enable live heart rate (daytime HR, `CONNECTED_LIVE`) and invoke `on_sample`
-    /// for each valid beat for up to `duration`. Restores `AUTOMATIC` mode on exit.
-    /// The ring must be worn for samples to appear.
+    /// Stream live heart rate for up to `duration`. See
+    /// [`Self::live_heart_rate_until`].
     pub async fn live_heart_rate<F>(
         &self,
         duration: Duration,
         debug: bool,
+        on_sample: F,
+    ) -> Result<()>
+    where
+        F: FnMut(HeartRateSample),
+    {
+        self.live_heart_rate_until(tokio::time::sleep(duration), debug, on_sample)
+            .await
+    }
+
+    /// Stream live heart rate and call `on_sample` for each valid beat until
+    /// `stop` completes. The ring must be worn for samples to appear.
+    ///
+    /// The sequence is the one the official app sends (Th0rgal/open_oura issue
+    /// 20): register the stream (`16 01 02`, `1c 01 bf`), then set daytime HR to
+    /// `CONNECTED_LIVE` with the `LATEST` subscription. A Ring 4 goes back to
+    /// `AUTOMATIC` after about 20 s, so the request is sent again every
+    /// [`LIVE_HR_BURST_EVERY`].
+    ///
+    /// On exit the ring gets `AUTOMATIC` and no subscription again, also when the
+    /// link failed (best effort). Live mode uses much more battery than normal
+    /// sensing, so a run must not leave it on.
+    ///
+    /// Returns an error when the inbound channel closed before `stop` completed.
+    pub async fn live_heart_rate_until<S, F>(
+        &self,
+        stop: S,
+        debug: bool,
         mut on_sample: F,
     ) -> Result<()>
     where
+        S: std::future::Future<Output = ()>,
         F: FnMut(HeartRateSample),
     {
         let mut rx = self.transport.subscribe();
@@ -793,33 +832,47 @@ impl<T: Transport> OuraClient<T> {
         while rx.try_recv().is_ok() {}
 
         self.transport
-            .write(&protocol::req_set_feature_mode(
-                feature::DAYTIME_HR,
-                feature_mode::CONNECTED_LIVE,
-            ))
+            .write(&protocol::req_stream_subscribe(0x02))
+            .await?;
+        self.transport
+            .write(&protocol::req_set_notification(0xbf))
             .await?;
 
-        let deadline = tokio::time::Instant::now() + duration;
+        tokio::pin!(stop);
+        let mut next_burst = tokio::time::Instant::now();
+        let mut outcome = Ok(());
         loop {
-            let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
-            if remaining.is_zero() {
-                break;
-            }
-            match tokio::time::timeout(remaining, rx.recv()).await {
-                Ok(Ok(frame)) => {
-                    if debug {
-                        eprintln!("raw notify: {}", hex::encode(&frame));
+            tokio::select! {
+                biased;
+                _ = &mut stop => break,
+                _ = tokio::time::sleep_until(next_burst) => {
+                    if let Err(e) = self.send_live_hr_burst().await {
+                        outcome = Err(e);
+                        break;
                     }
-                    if let Some(sample) = parse_live_hr_frame(&frame) {
-                        on_sample(sample);
-                    }
+                    next_burst = tokio::time::Instant::now() + LIVE_HR_BURST_EVERY;
                 }
-                Ok(Err(tokio::sync::broadcast::error::RecvError::Lagged(_))) => continue,
-                _ => break,
+                frame = rx.recv() => match frame {
+                    Ok(frame) => {
+                        if debug {
+                            eprintln!("raw notify: {}", hex::encode(&frame));
+                        }
+                        if let Some(sample) = parse_live_hr_frame(&frame) {
+                            on_sample(sample);
+                        }
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => {
+                        outcome = Err(Error::Protocol(
+                            "the link closed during the live heart rate stream".into(),
+                        ));
+                        break;
+                    }
+                },
             }
         }
 
-        // Best-effort restore to automatic mode.
+        // Best-effort restore: automatic measuring, no live subscription.
         let _ = self
             .transport
             .write(&protocol::req_set_feature_mode(
@@ -827,7 +880,31 @@ impl<T: Transport> OuraClient<T> {
                 feature_mode::AUTOMATIC,
             ))
             .await;
-        Ok(())
+        let _ = self
+            .transport
+            .write(&protocol::req_set_feature_subscription(
+                feature::DAYTIME_HR,
+                protocol::subscription_mode::OFF,
+            ))
+            .await;
+        outcome
+    }
+
+    /// One round of the live-HR request: daytime HR to `CONNECTED_LIVE`, then the
+    /// subscription a Ring 4 needs before it sends beats.
+    async fn send_live_hr_burst(&self) -> Result<()> {
+        self.transport
+            .write(&protocol::req_set_feature_mode(
+                feature::DAYTIME_HR,
+                feature_mode::CONNECTED_LIVE,
+            ))
+            .await?;
+        self.transport
+            .write(&protocol::req_set_feature_subscription(
+                feature::DAYTIME_HR,
+                protocol::subscription_mode::LATEST,
+            ))
+            .await
     }
 
     /// Stream live accelerometer samples (the "wave to test motion" path): enable
@@ -918,6 +995,10 @@ fn bpm_from_ibi(ibi_ms: u16) -> Option<u16> {
     }
 }
 
+/// How often the live-HR request is sent again. A Ring 4 goes back to `AUTOMATIC`
+/// after about 20 s.
+pub const LIVE_HR_BURST_EVERY: Duration = Duration::from_secs(15);
+
 /// Parse a daytime-HR live subscription notification (tag `0x2f`, sub-tag `0x28`).
 ///
 /// Frame layout: `[0]=0x2f [1]=len [2]=0x28(IND1) [3]=cap [4]=status [5]=state
@@ -952,6 +1033,36 @@ mod tests {
         let client = OuraClient::new(mock).with_quiet(Duration::from_millis(20));
         let info = client.firmware().await.unwrap();
         assert_eq!(info.firmware_version, "3.4.3");
+    }
+
+    #[tokio::test]
+    async fn live_heart_rate_streams_beats_and_restores_the_ring() {
+        // Frames from a Ring 4 (fw 2.12.5, Th0rgal/open_oura issue 20): a valid
+        // 733 ms beat (81 bpm), then a beat with validity 2, which is dropped.
+        let mock = MockTransport::new();
+        mock.on("2f03220203", &["2f03230200"]);
+        mock.on(
+            "2f03260202",
+            &[
+                "2f03270200",
+                "2f0f280201020000dd1200000000420c7f",
+                "2f0f280201020000b62300000000420c7f",
+            ],
+        );
+        let client = OuraClient::new(mock).with_quiet(Duration::from_millis(20));
+        let mut beats = Vec::new();
+        client
+            .live_heart_rate(Duration::from_millis(100), false, |s| {
+                beats.push((s.bpm, s.ibi_ms))
+            })
+            .await
+            .unwrap();
+        assert_eq!(beats, vec![(81, 733)]);
+        let writes: Vec<String> = client.transport().writes().iter().map(hex::encode).collect();
+        assert_eq!(
+            writes,
+            ["160102", "1c01bf", "2f03220203", "2f03260202", "2f03220201", "2f03260200"]
+        );
     }
 
     #[tokio::test]
@@ -1020,6 +1131,39 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn legacy_drain_stops_when_only_the_request_log_is_new() {
+        // Gen3 fw 3.4.3 logs two debug_data records (0x61) for each GetEvent
+        // request, so at the end of the log every ack returns two new records.
+        let mock = MockTransport::new();
+        mock.on("280100", &["290100"]);
+        mock.on("2f0c410000000000000000000010", &["2f020041"]);
+        mock.on("100900000000ffffffffff", &["43050100000041", "11080100000000000300"]);
+        let request_log = [
+            "611002000000 1a18002500000000000000cb",
+            "611103000000 23070000020000020000010000",
+            "11080200000000000300",
+        ]
+        .map(|f| f.replace(' ', ""));
+        mock.on("10090200000000ffffffff", &request_log.each_ref().map(String::as_str));
+        // The ring would answer the next ack the same way, forever.
+        mock.on(
+            "10090400000000ffffffff",
+            &["611004000000 1a18002500000000000000cb".replace(' ', "").as_str(), "11080100000000000300"],
+        );
+        let client = OuraClient::new(mock).with_quiet(Duration::from_millis(20));
+        let outcome = client.drain_events(0, |_| true, |_| true).await.unwrap();
+        assert_eq!(outcome.events_synced, 3);
+        assert_eq!(outcome.next_cursor, 4);
+        let acks_at_4 = client
+            .transport()
+            .writes()
+            .iter()
+            .filter(|w| hex::encode(w) == "10090400000000ffffffff")
+            .count();
+        assert_eq!(acks_at_4, 0);
+    }
+
+    #[tokio::test]
     async fn batch_size_override_is_sent_on_the_wire() {
         let mock = MockTransport::new();
         mock.on("280100", &["290100"]);
@@ -1078,6 +1222,58 @@ mod tests {
         let outcome = client.drain_events(0, |_| true, |_| true).await.unwrap();
         assert_eq!(outcome.events_synced, 2);
         assert_eq!(outcome.next_cursor, 3);
+    }
+
+    #[tokio::test]
+    async fn legacy_drain_reports_a_result_code_as_an_error() {
+        // Gen3 BLB_03 fw 3.4.3, 2026-09-29: the ring answered each GetEvent with
+        // 0 events, 0 bytes left and result code 0x11 while it held 6.4 MB.
+        for (cursor, request, reply) in [
+            (5_418_433, "1009c1ad5200ffffffffff", "11080007000000000311"),
+            (0, "100900000000ffffffffff", "1108001f000000000311"),
+        ] {
+            let mock = MockTransport::new();
+            mock.on("280100", &["290100"]);
+            mock.on_prefix("2f0c41", &["2f020041"]);
+            mock.on(request, &[reply]);
+            let client = OuraClient::new(mock).with_quiet(Duration::from_millis(20));
+            let mut batches = 0;
+            let err = client
+                .drain_events(cursor, |_| true, |_| {
+                    batches += 1;
+                    true
+                })
+                .await
+                .unwrap_err();
+            assert!(matches!(err, Error::HistoryRejected { api: "legacy", code: 0x11 }));
+            assert_eq!(
+                err.to_string(),
+                "legacy history request failed with result code 0x11"
+            );
+            // No checkpoint for the refused request, and no ack-fetch after it.
+            assert_eq!(batches, 0);
+            let get_events = client
+                .transport()
+                .writes()
+                .iter()
+                .filter(|w| w.first() == Some(&0x10))
+                .count();
+            assert_eq!(get_events, 1);
+        }
+    }
+
+    #[tokio::test]
+    async fn extended_drain_reports_a_result_code_without_a_link_hint() {
+        let mock = MockTransport::new();
+        mock.on("280100", &["290100"]);
+        mock.on_prefix("2f0c41", &["2f0a420000000000000000ff"]);
+        let client = OuraClient::new(mock).with_quiet(Duration::from_millis(20));
+        let err = client.drain_events(7, |_| true, |_| true).await.unwrap_err();
+        assert!(matches!(err, Error::HistoryRejected { api: "extended", code: 0xff }));
+        assert_eq!(
+            err.to_string(),
+            "extended history request failed with result code 0xff"
+        );
     }
 
     #[test]

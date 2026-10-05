@@ -164,6 +164,32 @@ pub fn feature_name(id: u8) -> &'static str {
     }
 }
 
+/// The measurement features a user can switch on a consumer ring, in the order a
+/// settings screen shows them. The ring rejects a feature it does not support.
+pub const USER_FEATURES: [u8; 5] = [
+    feature::DAYTIME_HR,
+    feature::SPO2,
+    feature::EXERCISE_HR,
+    capability::REAL_STEPS,
+    0x0d,
+];
+
+/// The feature id for a name that [`feature_name`] gives.
+pub fn feature_id(name: &str) -> Option<u8> {
+    let name = name.trim().to_ascii_lowercase();
+    [
+        feature::DAYTIME_HR,
+        feature::EXERCISE_HR,
+        feature::SPO2,
+        feature::RESTING_HR,
+        capability::REAL_STEPS,
+        capability::AMBIENT_LIGHT,
+        0x0d,
+    ]
+    .into_iter()
+    .find(|id| feature_name(*id) == name)
+}
+
 async fn identify<T: Transport>(
     client: &OuraClient<T>,
 ) -> Result<(String, Option<String>, RingGeneration, Option<DeviceInfo>)> {

@@ -102,7 +102,7 @@ result.
 | Sleep hypnogram (staging) | SleepNet PyTorch (`sleepnet_*`, `sleepstaging_*`, BDI) | `*.pt.enc` asset packs; ring also stages in firmware |
 | Daytime / cumulative stress | PyTorch (`stress_daytime_sensing_1_1_0`, `cumulative_stress_1_2_2`) | `*.pt.enc`, not `isCloudOnly`; `TimeseriesDbDaytimeStress` |
 | Resilience level | PyTorch (`stress_resilience_2_2_1`) | `*.pt.enc`; `DbDailyLongTermResilience` |
-| Cardiovascular age / PWV | PyTorch (`cva_2_1_0`, `cva_calibrator`) | `*.pt.enc`; see [`cva-cardiovascular-age.md`](cva-cardiovascular-age.md) |
+| Cardiovascular age / PWV | PyTorch (`cva_2_1_0`, `cva_calibrator`) | `*.pt.enc` |
 | **Workout auto-detection** ("confirm activity") | **Cloud ML** (the one real exception) | `POST /api/activity-tagging/v2` -> `activity_id` + `confidence` |
 
 So the only genuinely cloud-originated value is **workout auto-classification**.
@@ -123,8 +123,7 @@ still blocks a bit-exact reproduction is **inputs and constants**, not network:
 - **Stress inputs**: `stress_daytime_sensing` needs **awake, sedentary daytime
   HRV** (validator rejects in-bedtime samples with code 6 "Sleep detected", and
   `ring_met > 1.8` with code 3). Our captures are mostly nocturnal; enable the
-  `daytime_hr` feature to collect awake HRV. `tools/run_stress_model.py` runs the
-  model on whatever awake samples exist.
+  `daytime_hr` feature to collect awake HRV.
 - **Resilience inputs**: `stress_resilience` additionally needs a ~14-day history
   (`daily_stress_list` / `daily_restorative_time_list` / `daily_sleep_recovery_list`)
   plus the daily scores (`sleep_score`/`hrv_balance`/`recovery_index`) — so it

@@ -24,9 +24,22 @@ pub(crate) struct ValidatedHistoryBatch {
     pub rejected_events: u32,
 }
 
+/// History tag of `debug_data` records.
+const DEBUG_DATA_TAG: u8 = 0x61;
+
 impl ValidatedHistoryBatch {
     pub fn progressed(&self, previous_cursor: u32) -> bool {
         !self.events.is_empty() && self.next_cursor > previous_cursor
+    }
+
+    /// True for a batch that holds only `debug_data` records and has nothing left.
+    /// A Gen3 ring (fw 3.4.3) logs two `debug_data` records for each GetEvent
+    /// request. At the end of the log every batch holds only the records of the
+    /// request before it, so "wait for an empty batch" never ends.
+    pub fn only_request_log_left(&self) -> bool {
+        self.bytes_left == 0
+            && !self.events.is_empty()
+            && self.events.iter().all(|e| e.tag == DEBUG_DATA_TAG)
     }
 }
 
@@ -67,17 +80,21 @@ pub(crate) fn validate_batch(batch: HistoryBatch, batch_start: u32) -> Validated
 
 pub(crate) fn decode_batch(packets: &[Packet]) -> Result<HistoryBatch> {
     let mut bytes_left = None;
-    let mut result_code = None;
+    // The result code of the summary, with the name of the API that sent it.
+    let mut result = None;
     let mut events = Vec::new();
     let mut envelopes = ExtEventEnvelopeParser::default();
 
     for packet in packets {
         if packet.tag == 0x11 {
-            bytes_left = EventBatchSummary::parse(packet).map(|s| s.bytes_left);
+            if let Some(summary) = EventBatchSummary::parse(packet) {
+                bytes_left = Some(summary.bytes_left);
+                result = summary.result_code.map(|code| ("legacy", code));
+            }
         } else if packet.tag == 0x2f && packet.payload.first() == Some(&0x42) {
             if let Some(summary) = ExtEventBatchSummary::parse(packet) {
                 bytes_left = Some(summary.bytes_left);
-                result_code = Some(summary.result_code);
+                result = Some(("extended", summary.result_code));
             }
         } else if packet.tag == 0x2f && packet.payload.first() == Some(&0x43) {
             events.extend(
@@ -98,10 +115,10 @@ pub(crate) fn decode_batch(packets: &[Packet]) -> Result<HistoryBatch> {
             packets.len()
         )));
     };
-    if let Some(code) = result_code.filter(|&code| code != 0) {
-        return Err(Error::Protocol(format!(
-            "extended history request failed with result code 0x{code:02x}"
-        )));
+    // A non-zero result code is a refused request on the two APIs. The summary
+    // then shows 0 events and 0 bytes left, but the ring can hold history.
+    if let Some((api, code)) = result.filter(|&(_, code)| code != 0) {
+        return Err(Error::HistoryRejected { api, code });
     }
     Ok(HistoryBatch { events, bytes_left })
 }
@@ -147,7 +164,28 @@ mod tests {
         // Exact terminal frame from the 2026-07-11 iOS sync. 0xff is a rejected
         // request, not a successful empty batch, even though bytes_left is zero.
         let error = decode_batch(&[packet("2f0a420000000000000000ff")]).unwrap_err();
-        assert!(error.to_string().contains("result code 0xff"));
+        assert!(matches!(error, Error::HistoryRejected { api: "extended", code: 0xff }));
+        assert_eq!(
+            error.to_string(),
+            "extended history request failed with result code 0xff"
+        );
+    }
+
+    #[test]
+    fn rejects_legacy_result_code_from_gen3_vector() {
+        // Gen3 BLB_03 fw 3.4.3, 2026-09-29: the replies to GetEvent at cursor
+        // 5418433 and at cursor 0. The ring held 6.4 MB of history at that time.
+        for frame in ["11080007000000000311", "1108001f000000000311"] {
+            let error = decode_batch(&[packet(frame)]).unwrap_err();
+            assert!(matches!(error, Error::HistoryRejected { api: "legacy", code: 0x11 }));
+            assert_eq!(
+                error.to_string(),
+                "legacy history request failed with result code 0x11"
+            );
+        }
+        // The normal tail `03 00` of the same ring is a batch.
+        let batch = decode_batch(&[packet("1108ff002cbe62000300")]).unwrap();
+        assert_eq!(batch.bytes_left, 6_471_212);
     }
 
     #[test]
