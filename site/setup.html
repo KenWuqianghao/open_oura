@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Open Oura Setup Guide</title>
-<meta name="description" content="Step by step: install Open Oura on your iPhone, reset and pair your Oura ring, run your own hub, connect an AI agent, and add Oura's sleep models if you have them.">
+<meta name="description" content="Step by step: install Open Oura on your iPhone, reset and pair your Oura ring, run your own hub, connect an AI agent, and see how the app computes its results.">
 <meta property="og:title" content="Open Oura: your Oura ring, no account, no cloud">
 <meta property="og:description" content="Open-source iPhone app for Oura Ring 3, 4, and 5. Bluetooth sync, on-phone scores, an optional self-hosted hub, and MCP for your AI agent.">
 <meta property="og:image" content="https://open-oura.vercel.app/assets/og.jpg">
@@ -134,7 +134,7 @@ footer nav { display: flex; gap: 20px; flex-wrap: wrap; }
   <div class="shell">
     <a class="logo" href="/"><i></i>Open Oura</a>
     <nav class="links" aria-label="Parts">
-      <a href="#app">The app</a><a href="#ring">The ring</a><a href="#hub">Hub</a><a href="#agent">Agent</a><a href="#models">Sleep models</a><a href="#help">Help</a>
+      <a href="#app">The app</a><a href="#ring">The ring</a><a href="#hub">Hub</a><a href="#agent">Agent</a><a href="#models">Methods</a><a href="#help">Help</a>
     </nav>
     <a class="btn" href="/">Overview</a>
   </div>
@@ -143,13 +143,13 @@ footer nav { display: flex; gap: 20px; flex-wrap: wrap; }
 <main>
 <div class="intro shell">
   <h1>Set up Open Oura, from a clean Mac to your ring on your iPhone.</h1>
-  <p>Five parts, in this order. You need only the first two: the app and the ring. The hub, the agent, and Oura's sleep models are optional. Plan about 30 minutes for the first two parts. Most of that time is the first build and the ring reset.</p>
+  <p>Five parts, in this order. You need only the first two: the app and the ring. The hub and the agent are optional. The last part explains how the app computes its results. Plan about 30 minutes for the first two parts. Most of that time is the first build and the ring reset.</p>
   <nav class="parts-index" aria-label="The five parts">
     <a href="#app"><span>1</span>Install the app</a>
     <a href="#ring"><span>2</span>Free the ring and pair it</a>
     <a href="#hub"><span>3</span>Run your hub (optional)</a>
     <a href="#agent"><span>4</span>Connect your agent (optional)</a>
-    <a href="#models"><span>5</span>Add Oura's sleep models (optional)</a>
+    <a href="#models"><span>5</span>How the app computes its results</a>
   </nav>
 </div>
 
@@ -304,46 +304,19 @@ footer nav { display: flex; gap: 20px; flex-wrap: wrap; }
 
 <section class="block" id="models">
   <div class="shell">
-    <div class="side"><span class="num">5</span><h2>Add Oura's sleep models</h2><p>Optional. Oura's own on-device models, from your own copy of the official app. On your Mac, a few hours the first time.</p></div>
+    <div class="side"><span class="num">5</span><h2>How the app computes its results</h2><p>Nothing to install. The app uses the ring's own data and open methods.</p></div>
     <div>
-      <p class="muted" style="max-width:64ch">The official app computes some results with PyTorch models that run on the phone: the sleep stages, cardiovascular age, workout detection, the Ring 5 step decoder, and the illness check. These model files are Oura's property. They are not in these repositories, and you must supply your own.</p>
-      <p class="aside" style="border-left-color:var(--rem)">This part follows Thomas Marchand's work in <a href="https://github.com/Th0rgal/open_health">open_health</a>. His <a href="https://github.com/Th0rgal/open_health/blob/main/docs/algorithms/sleepnet.md">sleepnet.md</a> found how the official app encrypts the model files and where the key comes from. His <a href="https://github.com/Th0rgal/open_health/blob/main/docs/model-runners.md">model-runners.md</a> runs the models on synced ring data. The iOS build of the models is in the <a href="https://github.com/KenWuqianghao/open_health/tree/main/apps/ios#optional-the-on-device-models">iOS README</a>.</p>
-      <ol class="steps" style="margin-top:32px">
-        <li><div>
-          <h3>Get the model files from your own copy of the official app</h3>
-          <p>The official Android app ships the models as encrypted <code>.pt.enc</code> files. Oura's servers send the key to the app after you sign in, so you need the official app on your own phone and your own Oura account. Read <a href="https://github.com/Th0rgal/open_health/blob/main/docs/algorithms/sleepnet.md">sleepnet.md</a> for the file format.</p>
-          <p>Put the decrypted <code>.pt</code> files in <code>notes/models/</code> in your open_health folder. Git ignores that folder, so the files never go into the repository.</p>
-        </div></li>
-        <li><div>
-          <h3>Export the files that the app bundles</h3>
-          <div class="code"><pre>python3 tools/export_mobile.py   <span class="c"># writes notes/models/mobile/*.ptl</span></pre><button class="copy" type="button">Copy</button></div>
-          <p>It exports the five versions that the iPhone app runs: <code>sleepnet_moonstone_1_2_0</code>, <code>cva_2_1_5</code>, <code>automatic_activity_detection_3_1_12</code>, <code>steps_motion_decoder_2_0_0</code>, and <code>illness_detection_0_5_1</code>.</p>
-        </div></li>
-        <li><div>
-          <h3>Build PyTorch for iOS once</h3>
-          <p>This compiles PyTorch from source. It takes about an hour and 8 GB of disk for each slice. The device slice is enough for an iPhone.</p>
-          <div class="code"><pre>./apps/ios/spike/build_libtorch_ios.sh device
-./apps/ios/package-libtorch-xcframeworks.sh</pre><button class="copy" type="button">Copy</button></div>
-        </div></li>
-        <li><div>
-          <h3>Install the build with the models</h3>
-          <div class="code"><pre>TORCH=1 ./apps/ios/install.sh</pre><button class="copy" type="button">Copy</button></div>
-          <p>The app is now about 110 MB. It stages each night with Oura's model, and writes the stages and workouts to Apple Health too.</p>
-        </div></li>
-      </ol>
-
+      <p class="muted" style="max-width:64ch">The official app computes some results with models that are Oura's property. Open Oura does not include them and does not use them. It gets the same kinds of results in these ways. These methods are simpler than Oura's models.</p>
       <div class="sub">
-        <h3>If you cannot get the model files</h3>
-        <p>Skip this part. The app works without the models, and it uses its own methods for the same results. These methods are simpler than Oura's models.</p>
         <div class="table-wrap"><table class="compare">
-          <thead><tr><th>Result</th><th>With Oura's models</th><th>Without them</th></tr></thead>
+          <thead><tr><th>Result</th><th>How Open Oura gets it</th></tr></thead>
           <tbody>
-            <tr><td>Sleep stages</td><td>Oura's sleep model, from heart rate, movement, and temperature</td><td>The ring's own stages. The ring computes a hypnogram itself and sends it with the night, in 30-second steps. This is confirmed on a Ring 3. If a ring does not send them, the night shows its signals (heart rate, HRV, temperature, blood oxygen, and movement) and no stages.</td></tr>
-            <tr><td>Workouts</td><td>Oura's activity model detects them and their type</td><td>A rule finds them: 15 minutes or more at a moderate activity level (3 MET or more). These workouts have no type. Workouts from Apple Health (for example, an Apple Watch) and your own entries go into the same list.</td></tr>
-            <tr><td>Symptom Radar</td><td>Oura's illness model</td><td>A rule check: it flags nights when temperature, HRV, and resting heart rate move away from your baseline together.</td></tr>
-            <tr><td>Steps on a Ring 5</td><td>Oura's step decoder</td><td>An estimate from the ring's activity level (MET).</td></tr>
-            <tr><td>Cardiovascular age</td><td>Oura's model</td><td>Not available.</td></tr>
-            <tr><td>Everything else</td><td colspan="2">The same in both builds: the scores, HRV, resting heart rate, blood oxygen, temperature, stress, the bedtime window, the journal, reports, live heart rate, widgets, and the hub.</td></tr>
+            <tr><td>Sleep stages</td><td>The ring's own stages. The ring computes a hypnogram itself, with deep, light and REM sleep, and sends it with the night in 30-second steps. This is confirmed on a Ring 3. If a ring does not send them, the night shows its signals (heart rate, HRV, temperature, blood oxygen, and movement) and no stages.</td></tr>
+            <tr><td>Workouts</td><td>A rule finds them: 15 minutes or more at a moderate activity level (3 MET or more). These workouts have no type. Workouts from Apple Health (for example, an Apple Watch) and your own entries go into the same list.</td></tr>
+            <tr><td>Symptom Radar</td><td>A rule check: it flags nights when temperature, HRV, breathing rate, and resting heart rate move away from your baseline. It also shows an alert when your resting heart rate is raised for two nights in a row (the NightSignal method, Mishra et al. 2022).</td></tr>
+            <tr><td>Steps on a Ring 5</td><td>An estimate from the ring's activity level (MET).</td></tr>
+            <tr><td>Cardiovascular age</td><td>Not available.</td></tr>
+            <tr><td>Everything else</td><td>The scores, HRV, resting heart rate, blood oxygen, temperature, stress, the bedtime window, the journal, reports, live heart rate, widgets, and the hub come from the ring's data and published methods.</td></tr>
           </tbody>
         </table></div>
       </div>
@@ -369,7 +342,7 @@ footer nav { display: flex; gap: 20px; flex-wrap: wrap; }
           <tr><td>“Peer removed pairing information”</td><td>The iPhone still has the old pairing. Settings → Bluetooth → the ring → Forget This Device.</td></tr>
           <tr><td>“Reset needed”</td><td>The ring has another key, for example after a setup in the official app. Reset the ring on its charger again.</td></tr>
           <tr><td>“No ring found” or a timeout</td><td>Put the ring on its charger next to the iPhone. The ring's radio is weak.</td></tr>
-          <tr><td>A night has no sleep stages</td><td>Without Oura's models, the stages come from the ring itself, and not every ring sends them. See <a href="#models">part 5</a>.</td></tr>
+          <tr><td>A night has no sleep stages</td><td>The stages come from the ring itself, and not every ring sends them. See <a href="#models">part 5</a>.</td></tr>
           <tr><td>The Connect page says “This is the server's own address”</td><td>Open the page at the address that the phone uses, for example <code>http://server.tailnet.ts.net:8787</code>, or type that address into the field.</td></tr>
           <tr><td>The iPhone cannot reach the hub</td><td>Turn on Tailscale on the iPhone. The app accepts plain <code>http://</code> only for <code>*.ts.net</code> names; use <code>https://</code> for any other name.</td></tr>
           <tr><td>The hub does not answer after a reboot</td><td>Run <code>./deploy/install.sh</code> again. Read the logs with <code>docker logs oura-hub</code> or <code>journalctl --user -u oura-hub</code>.</td></tr>
