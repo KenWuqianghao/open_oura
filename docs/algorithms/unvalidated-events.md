@@ -18,7 +18,7 @@ fields. The handler `@ address` is cited in `crates/oura-protocol/src/events.rs`
 
 | Tag | Event | Field confidence | How to trigger / validate |
 | --- | --- | --- | --- |
-| `0x49` | sleep_summary_1 | offsets only (abs time needs header) | after a processed sleep period |
+| `0x49` | sleep_summary_1 | `start_offset_min` and `end_offset_min`: minutes from the bedtime start and from the bedtime end to the time of this event (checked on a Gen3 ring, 2026-10-06). The ring writes it between the `bedtime_period` and page 0 of `sleep_phase_data` | each time the ring analyses a sleep |
 | `0x4c` | sleep_summary_2 | structure only (u64/u16/u32, names TBD) | after a processed sleep period |
 | `0x4f` | sleep_summary_3 | structure (3 fields are ÷8 fixed-point) | after a processed sleep period |
 | `0x58` | sleep_summary_4 | structure only | after a processed sleep period |

@@ -13,11 +13,13 @@ model when the client runs it, else from the ring's own pages (`sleep_phase_data
 tag `0x5a`). A Gen3 ring scores each sleep of about 2 hours or more itself, with
 deep sleep.
 
-A check on 23 sleeps of one Gen3 wearer (age 22, 2026-10-05) compared this model
-with the ring's own stages, epoch by epoch, in 3 classes: agreement 0.68, Cohen's
-κ 0.30. The model found 27 of the 1107 REM epochs. A different age input made the
-result worse. The probable cause is the training data: older adults and chest ECG,
-not a young adult and finger PPG. Do not show these stages to a user.
+A check on 29 sleeps of one Gen3 wearer (age 22, 2026-10-06) compared this model
+with the ring's own stages, epoch by epoch, in 3 classes: agreement 0.72, Cohen's
+κ 0.40 (κ 0.29 on the sleeps of 5 hours or more). The model found 56 of the 1272
+REM epochs. A different age input made the result worse. The probable cause is the
+training data: older adults and chest ECG, not a young adult and finger PPG. For
+reference, Oura's SleepNet agrees with the ring's stages at κ 0.64 in 3 classes
+and κ 0.55 in 4 classes on the same sleeps. Do not show these stages to a user.
 
 The port stays as a tested base for a model that we train ourselves.
 
