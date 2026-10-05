@@ -475,6 +475,11 @@ impl<T: Transport> OuraClient<T> {
     /// a completed sync: the summary is the ring's explicit terminator, so its
     /// absence means the link died mid-batch. Callers should reconnect and call
     /// again — the persisted cursor makes that resume, not restart.
+    ///
+    /// A summary with a non-zero result code is [`Error::HistoryRejected`], not
+    /// an empty batch: the ring refused the request and can hold history. The
+    /// failed batch does not reach `on_event` or `on_batch`. Callers must keep
+    /// the saved cursor. It is not proof that the cursor is absent on the ring.
     pub async fn drain_events<F, G>(
         &self,
         cursor: u32,
@@ -546,11 +551,14 @@ impl<T: Transport> OuraClient<T> {
                 );
             }
 
-            let batch = decode_batch(&packets).map_err(|e| {
-                Error::Protocol(format!(
+            let batch = decode_batch(&packets).map_err(|e| match e {
+                // The ring answered and refused the request: the link is not lost.
+                // `on_batch` does not run, so the caller keeps its checkpoint.
+                Error::HistoryRejected { .. } => e,
+                e => Error::Protocol(format!(
                     "{e} — BLE link lost mid-batch? cursor {start} is checkpointed; \
                      reconnect and sync again to resume"
-                ))
+                )),
             })?;
             let batch = validate_batch(batch, start);
             for ev in &batch.events {
@@ -1214,6 +1222,58 @@ mod tests {
         let outcome = client.drain_events(0, |_| true, |_| true).await.unwrap();
         assert_eq!(outcome.events_synced, 2);
         assert_eq!(outcome.next_cursor, 3);
+    }
+
+    #[tokio::test]
+    async fn legacy_drain_reports_a_result_code_as_an_error() {
+        // Gen3 BLB_03 fw 3.4.3, 2026-09-29: the ring answered each GetEvent with
+        // 0 events, 0 bytes left and result code 0x11 while it held 6.4 MB.
+        for (cursor, request, reply) in [
+            (5_418_433, "1009c1ad5200ffffffffff", "11080007000000000311"),
+            (0, "100900000000ffffffffff", "1108001f000000000311"),
+        ] {
+            let mock = MockTransport::new();
+            mock.on("280100", &["290100"]);
+            mock.on_prefix("2f0c41", &["2f020041"]);
+            mock.on(request, &[reply]);
+            let client = OuraClient::new(mock).with_quiet(Duration::from_millis(20));
+            let mut batches = 0;
+            let err = client
+                .drain_events(cursor, |_| true, |_| {
+                    batches += 1;
+                    true
+                })
+                .await
+                .unwrap_err();
+            assert!(matches!(err, Error::HistoryRejected { api: "legacy", code: 0x11 }));
+            assert_eq!(
+                err.to_string(),
+                "legacy history request failed with result code 0x11"
+            );
+            // No checkpoint for the refused request, and no ack-fetch after it.
+            assert_eq!(batches, 0);
+            let get_events = client
+                .transport()
+                .writes()
+                .iter()
+                .filter(|w| w.first() == Some(&0x10))
+                .count();
+            assert_eq!(get_events, 1);
+        }
+    }
+
+    #[tokio::test]
+    async fn extended_drain_reports_a_result_code_without_a_link_hint() {
+        let mock = MockTransport::new();
+        mock.on("280100", &["290100"]);
+        mock.on_prefix("2f0c41", &["2f0a420000000000000000ff"]);
+        let client = OuraClient::new(mock).with_quiet(Duration::from_millis(20));
+        let err = client.drain_events(7, |_| true, |_| true).await.unwrap_err();
+        assert!(matches!(err, Error::HistoryRejected { api: "extended", code: 0xff }));
+        assert_eq!(
+            err.to_string(),
+            "extended history request failed with result code 0xff"
+        );
     }
 
     #[test]

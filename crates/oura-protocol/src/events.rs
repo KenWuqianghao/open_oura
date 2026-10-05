@@ -1018,11 +1018,22 @@ pub fn event_name(tag: u8) -> &'static str {
 }
 
 /// Summary frame returned at the end of a `GetEvent` batch (tag `0x11`).
-#[derive(Clone, Copy, Debug)]
+///
+/// A Ring 3 sends an 8-byte payload. The last two bytes are in the same
+/// positions as `buffer_id` and `result_code` of [`ExtEventBatchSummary`], and
+/// they have the same names here. A 6-byte payload has none of the two.
+///
+/// A Gen3 ring (BLB_03, fw 3.4.3) sends `03 00` in a normal summary. On
+/// 2026-09-29 it sent `03 11` with 0 events and 0 bytes left for each request,
+/// while it held 6.4 MB of history. A non-zero `result_code` thus means that the
+/// ring did not serve the request. The meaning of `0x11` is not known.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct EventBatchSummary {
     pub events_received: u8,
     pub sleep_analysis_progress: u8,
     pub bytes_left: u32,
+    pub buffer_id: Option<u8>,
+    pub result_code: Option<u8>,
 }
 
 impl EventBatchSummary {
@@ -1031,10 +1042,13 @@ impl EventBatchSummary {
             return None;
         }
         let p = &packet.payload;
+        let has_result = p.len() >= 8;
         Some(EventBatchSummary {
             events_received: p[0],
             sleep_analysis_progress: p[1],
             bytes_left: u32::from_le_bytes([p[2], p[3], p[4], p[5]]),
+            buffer_id: has_result.then(|| p[6]),
+            result_code: has_result.then(|| p[7]),
         })
     }
 }
@@ -1276,6 +1290,34 @@ mod tests {
         let s = EventBatchSummary::parse(&p).unwrap();
         assert_eq!(s.events_received, 8);
         assert_eq!(s.bytes_left, 3742);
+        assert_eq!(s.buffer_id, Some(3));
+        assert_eq!(s.result_code, Some(0));
+    }
+
+    #[test]
+    fn parses_batch_summary_result_code() {
+        // Gen3 BLB_03 fw 3.4.3, 2026-09-29: the replies to GetEvent at cursor
+        // 5418433 and at cursor 0. No events, 0 bytes left, result code 0x11.
+        for (frame, progress) in [("11080007000000000311", 0x07), ("1108001f000000000311", 0x1f)] {
+            let p = Packet::parse(&hex::decode(frame).unwrap()).unwrap();
+            let s = EventBatchSummary::parse(&p).unwrap();
+            assert_eq!(s.events_received, 0);
+            assert_eq!(s.sleep_analysis_progress, progress);
+            assert_eq!(s.bytes_left, 0);
+            assert_eq!(s.buffer_id, Some(3));
+            assert_eq!(s.result_code, Some(0x11));
+        }
+        // A normal reply of the same ring: 255 events, 6471212 bytes left.
+        let p = Packet::parse(&hex::decode("1108ff002cbe62000300").unwrap()).unwrap();
+        let s = EventBatchSummary::parse(&p).unwrap();
+        assert_eq!(s.events_received, 255);
+        assert_eq!(s.bytes_left, 6_471_212);
+        assert_eq!(s.result_code, Some(0));
+        // A 6-byte payload has no result code.
+        let p = Packet::parse(&hex::decode("1106000000000000").unwrap()).unwrap();
+        let s = EventBatchSummary::parse(&p).unwrap();
+        assert_eq!(s.buffer_id, None);
+        assert_eq!(s.result_code, None);
     }
 
     #[test]
