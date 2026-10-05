@@ -6,8 +6,8 @@ for things Oura computes in its cloud. The only such module was
 MET, motion, skin temperature and HR.
 
 **It has been removed.** Activity detection now belongs to the app layer in
-[`open_health`](https://github.com/Th0rgal/open_health), which can run Oura's
-decrypted `automatic_activity_detection` model instead of the old heuristic.
+[`open_health`](https://github.com/Th0rgal/open_health), which finds workouts
+from the MET minutes.
 
 Why the switch: the heuristic classified purely by temperature, so it mislabeled
 a morning run as a "Swim" (the ring's skin-temperature reading tripped the

@@ -3,7 +3,7 @@
 local/score_params.json, so the live scorers never need the CSV at runtime.
 
 Uses **ring-compatible** drivers only (LIVE_DRIVERS) — every input here is one the
-live scorers can compute from ring data + accumulated baselines (see build_daily.py),
+live scorers can compute from ring data + accumulated baselines,
 unlike the analysis-only drivers in fit_scores_all.py. The params file embeds each
 contributor's drivers + fitted curve, so the scorers stay driver-agnostic.
 

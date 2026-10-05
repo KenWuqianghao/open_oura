@@ -734,8 +734,8 @@ fn decode_sleep_summary_4(body: &[u8]) -> Option<serde_json::Value> {
 /// (`EventParser::parse_api_real_steps_features_1` in libringeventparser.so). A full
 /// gait window needs BOTH events combined into 27 quantized columns (feature_2's last
 /// byte supplies the 9th/carry bits of the `<<1` fields), then run through
-/// `steps_motion_decoder`. That pairing + decode lives in `tools/run_activity_model.py`
-/// (`unpack27`); here we just surface part-1's raw fields.
+/// `steps_motion_decoder` model. That pairing + decode is not in this repository;
+/// here we just surface part-1's raw fields.
 fn decode_real_steps(body: &[u8]) -> Option<serde_json::Value> {
     if body.len() != 14 {
         return None;

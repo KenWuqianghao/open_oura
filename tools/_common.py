@@ -1,7 +1,4 @@
-"""Shared helpers for the tools/ model runners (run_models, run_activity_model,
-run_sleep_model). Imported as a sibling module — each runner's directory is on
-sys.path[0] when invoked as `python tools/run_*.py`.
-"""
+"""Shared helpers for the tools/ scripts."""
 import sys
 from pathlib import Path
 

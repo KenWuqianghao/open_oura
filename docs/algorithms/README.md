@@ -13,11 +13,8 @@ addresses refer to functions in the decompiled `libappecore.so` (see
 `native-decoder.md` for the Ghidra method). Per-metric detail files are added as
 each is ported; this index is the status table.
 
-> **Models are not included in this repo.** Where the table says a metric runs via
-> a decrypted PyTorch model (`tools/run_*.py`), those `.pt` files are Oura's
-> proprietary IP and are **not committed** (gitignored under `notes/models/`) —
-> you supply your own locally-decrypted copies. See
-> [`docs/model-runners.md`](../model-runners.md).
+> **Models are not included in this repo.** Oura's PyTorch models are proprietary.
+> This repository has no model file and no code that runs one.
 
 ## Status
 
@@ -38,7 +35,7 @@ each is ported; this index is the status table.
 | Cycle prediction / tracking | `cycle_prediction_calculate @ 0x1e2864`, `cycle_tracking_calculate @ 0x1e4244` | - | ◐ day-type thresholds + 0.18–0.30 sine band recovered; fit_sin/sine_from_range unresolved - deferred |
 | Regularity, bedtime window, daytime stress, resilience, illness check, NightSignal, cycle | not ports: open estimates | `oura-analysis::insights` ([insights.md](insights.md)) | ✅ documented methods, tested |
 | Open sleep staging (wake / REM / non-REM) | not a port: SleepECG model | `oura-analysis::insights::open_sleep` ([open-sleep-staging.md](open-sleep-staging.md)) | ◐ features and probabilities equal to SleepECG (golden tests); not in use: weak agreement with the ring on real nights |
-| **Sleep hypnogram (staging)** | SleepNet PyTorch model - not in ecore | `tools/run_sleep_model.py`, `tools/run_models.py bdi` | ✅ **decrypted + running**: we produce a DEEP/LIGHT/REM/WAKE hypnogram offline with the decrypted `sleepnet_moonstone_1_2_0` (and `sleepnet_bdi_0_4_0` for apnea). The model key was extracted, so decryption is no longer blocked. `sleepstaging_2_6_0` itself won't load (needs a custom op `oura_ops::oura_create_windows` our torch runtime lacks) — moonstone covers staging. See [model-runners.md](../model-runners.md) |
+| **Sleep hypnogram (staging)** | SleepNet PyTorch model - not in ecore | - (the ring writes its own hypnogram in `sleep_phase_data`, tag `0x5a`; the app reads it) | not a port: the model is not in this repository |
 
 ## Device vs cloud (corrected)
 
@@ -101,9 +98,3 @@ Restfulness + Timing). See [`score-weights.md`](score-weights.md).
 R²=0.06 — the gap is the baseline-relative / personalised-goal / multi-day-load
 contributors that need accumulated history, not missing logic.
 
-**Live from the ring:** `oura sleep-score` (today) and `oura readiness-score` —
-the latter accrues a per-day summary + rolling baselines nightly (`tools/build_daily.py`),
-including a from-scratch **Recovery Index** (overnight RHR-minimum→wake), and flags
-baseline-relative contributors provisional until ~14 days mature. Calibration is
-persisted once to `local/score_params.json`. See
-[`daily-summaries-and-baselines.md`](daily-summaries-and-baselines.md).

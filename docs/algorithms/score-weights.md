@@ -92,25 +92,6 @@ Path to exact: compute those two from the **ring's own movement + hypnogram**
 (`sleep_acm_period` / `motion` events + SleepNet staging), which are finer-grained
 than the export aggregates — a follow-on that uses ring data, not this CSV.
 
-## Live scoring from ring data — `oura sleep-score`
-
-`tools/score_sleep.py` (and the `oura sleep-score` CLI command) compute a night's
-Sleep Score live, no cloud:
-
-1. SleepNet (`run_sleep_model.py`) → hypnogram → total-sleep / efficiency / REM /
-   deep durations + sleep latency (first sustained-sleep epoch).
-2. `bedtime_period` history → real-clock sleep midpoint (from the hypnogram's
-   local times) + 7-day regularity (a deciseconds delta, phase-independent).
-3. contributor curves + weights (calibrated from the trends export) → sub-scores →
-   `round(Σ wᵢ·subᵢ / 100)`.
-
-Restfulness uses only ring-derivable drivers (awake fraction + efficiency); its
-movement micro-inputs aren't reproducible from the export's units and add little
-once awake-fraction is in. Example (latest night in `oura.db`): 471 min asleep,
-91% efficiency → **Sleep Score 82** (Total 83 · Restful 73 · Eff 96 · REM 97 ·
-Deep 40 · Latency 92 · Timing 99). Calibration CSV auto-found at
-`~/Desktop/oura_*trends.csv` or passed with `--csv`.
-
 ## Readiness & Activity end-to-end (`tools/fit_scores_all.py`)
 
 Same approach as Sleep, with lag-1 and trailing-mean features engineered so a linear
@@ -146,16 +127,6 @@ method is exact where a contributor is a function of the day's physiology (all o
 Sleep bar two; Readiness's direct half; Activity's inactivity half). The rest is
 gated on **accumulated personal baselines/goals**, not on missing logic — the same
 wall that blocks live Readiness/Activity until weeks of local history accrue.
-
-## Live scoring from the ring
-
-`oura sleep-score` computes Sleep live today. `oura readiness-score` computes
-Readiness live from a per-day summary + rolling baselines accrued nightly — with the
-baseline-relative contributors flagged "provisional" until ~14 days of history mature.
-The substrate (daily summaries, baselines, Recovery Index, persisted calibration) is
-documented in [`daily-summaries-and-baselines.md`](daily-summaries-and-baselines.md).
-Calibration is fit once by `tools/calibrate_scores.py` into `local/score_params.json`,
-so the scorers don't need the trends CSV at runtime.
 
 ## On-device, without a calibration file
 
