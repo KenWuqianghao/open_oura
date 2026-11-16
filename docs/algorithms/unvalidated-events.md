@@ -13,13 +13,13 @@ fields. The handler `@ address` is cited in `crates/oura-protocol/src/events.rs`
 | `0x61`/`0x24` | `battery_level_changed` | captured: `battery_pct` 92–100 %, `voltage_mv` 4280–4391 mV (Li-ion). |
 | `0x6b` | `motion_period` | decodes the captured packed 2-bit streams. |
 | `0x6c` | `feature_session` | captured balanced start/stop pairs. |
+| `0x4c` | `sleep_summary_2` | words 1–3 (`rem_epochs`, `light_epochs`, `deep_epochs`) equal the epoch counts of the `sleep_phase_data` pages inside the bedtime window, without the zero padding: 279 of 279 runs on a Gen3 ring (2026-11-16). The ring writes it after the pages. The other fields are not resolved. |
 
 ## Unvalidated (layout from parser, awaiting a real sample)
 
 | Tag | Event | Field confidence | How to trigger / validate |
 | --- | --- | --- | --- |
 | `0x49` | sleep_summary_1 | `start_offset_min` and `end_offset_min`: minutes from the bedtime start and from the bedtime end to the time of this event (checked on a Gen3 ring, 2026-10-06). The ring writes it between the `bedtime_period` and page 0 of `sleep_phase_data` | each time the ring analyses a sleep |
-| `0x4c` | sleep_summary_2 | structure only (u64/u16/u32, names TBD) | after a processed sleep period |
 | `0x4f` | sleep_summary_3 | structure (3 fields are ÷8 fixed-point) | after a processed sleep period |
 | `0x58` | sleep_summary_4 | structure only | after a processed sleep period |
 | `0x7e`/`0x7f` | real_steps_features | bit-unpacked fields, names TBD | walk with the step feature on |

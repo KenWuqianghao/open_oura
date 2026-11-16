@@ -17,7 +17,7 @@ use oura_protocol::events::RingEvent;
 /// migration step in [`Store::migrate`] whenever a table/index changes: the DB
 /// now ships inside the iOS app, so older files must upgrade in place and newer
 /// files must be refused rather than silently misread.
-pub const SCHEMA_VERSION: i64 = 3;
+pub const SCHEMA_VERSION: i64 = 4;
 
 const SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS device (
@@ -149,8 +149,6 @@ impl Store {
 
     /// Bring an older file up to [`SCHEMA_VERSION`]. Version 0 is both a fresh
     /// file and every pre-versioning file (their tables are identical to v1).
-    /// Writing the version is tolerated to fail on a read-only seed DB, like the
-    /// WAL switch above.
     fn migrate(&self) -> Result<()> {
         let found = self.schema_version()?;
         if found > SCHEMA_VERSION {
@@ -171,6 +169,9 @@ impl Store {
         if found < 3 {
             // v3: the per-day metric cache.
             self.conn.execute_batch(DAILY_SUMMARY_SCHEMA)?;
+        }
+        if found < 4 && !self.conn.is_readonly(rusqlite::DatabaseName::Main)? {
+            self.redecode_where(Some(0x4c))?;
         }
         if found != SCHEMA_VERSION {
             let _ = self
@@ -422,15 +423,23 @@ impl Store {
     /// `decoded_json`. Returns `(rows_with_decode, total_rows)`. Lets new decoders
     /// be applied to events captured before they existed — no re-sync needed.
     pub fn redecode(&self) -> Result<(usize, usize)> {
+        self.redecode_where(None)
+    }
+
+    fn redecode_where(&self, tag: Option<u8>) -> Result<(usize, usize)> {
         let rows: Vec<(i64, i64, Vec<u8>)> = {
-            let mut stmt = self.conn.prepare("SELECT id, tag, body FROM events")?;
+            let mut stmt = self.conn.prepare(match tag {
+                Some(_) => "SELECT id, tag, body FROM events WHERE tag = ?1",
+                None => "SELECT id, tag, body FROM events WHERE ?1 IS NULL",
+            })?;
             let collected = stmt
-                .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
+                .query_map(params![tag], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
                 .collect::<std::result::Result<Vec<_>, _>>()?;
             collected
         };
         let total = rows.len();
         let mut decoded_count = 0;
+        let tx = tag.map(|_| self.conn.unchecked_transaction()).transpose()?;
         for (id, tag, body) in rows {
             let decoded = oura_protocol::events::decode_event_body(tag as u8, &body)
                 .map(|v| serde_json::to_string(&v).unwrap_or_default());
@@ -442,6 +451,9 @@ impl Store {
                 "UPDATE events SET decoded_json = ?1, name = ?2 WHERE id = ?3",
                 params![decoded, name, id],
             )?;
+        }
+        if let Some(tx) = tx {
+            tx.commit()?;
         }
         Ok((decoded_count, total))
     }
@@ -774,9 +786,38 @@ mod tests {
             conn.execute_batch("PRAGMA user_version = 2;").unwrap();
         }
         let store = Store::open(&path).unwrap();
-        assert_eq!(store.schema_version().unwrap(), 3);
+        assert_eq!(store.schema_version().unwrap(), SCHEMA_VERSION);
         store.upsert_daily("S1", &[("2026-09-27", "hrv_ms", 41.0)]).unwrap();
         assert_eq!(store.daily_range("S1", "2026-09-27", "2026-09-27").unwrap().len(), 1);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn version_3_file_decodes_its_sleep_summary_2_again() {
+        let dir = std::env::temp_dir().join(format!("oura-store-v3-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("v3.db");
+        let _ = std::fs::remove_file(&path);
+        {
+            let store = Store::open(&path).unwrap();
+            let body = hex::decode("29004b00f601d8000b0236430a09").unwrap();
+            store.conn.execute(
+                "INSERT INTO events (serial, tag, name, ring_timestamp, body, decoded_json, captured_unix) \
+                 VALUES ('S1', 76, 'sleep_summary_2', 1, ?1, '{\"field_a_u64\":1}', 1)",
+                params![body],
+            ).unwrap();
+            store
+                .conn
+                .execute_batch("PRAGMA user_version = 3;")
+                .unwrap();
+        }
+        let store = Store::open(&path).unwrap();
+        let json: String = store
+            .conn
+            .query_row("SELECT decoded_json FROM events", [], |r| r.get(0))
+            .unwrap();
+        let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(v["deep_epochs"], 216, "{json}");
         std::fs::remove_dir_all(&dir).ok();
     }
 
