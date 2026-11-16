@@ -130,11 +130,11 @@ fn decode_body(tag: u8, body: &[u8]) -> Option<serde_json::Value> {
         0x79 => decode_telemetry(body, "self_test_data"), // parse_api_selftest_data_event @ 0x3ca74c
         0x82 => decode_telemetry(body, "scan_start"),     // parse_api_scan_start @ 0x3cbe20
         0x83 => decode_telemetry(body, "scan_end"),       // parse_api_scan_end @ 0x3cc43c
+        0x4c => decode_sleep_summary_2(body), // parse_api_sleep_summary_2 @ 0x3c76c8
         // ── Ported from the native parser, NOT YET VALIDATED against captured
         //    bytes (these event types haven't appeared in our syncs). Each emits
         //    `"_status":"unvalidated"`; drop it once confirmed on a real sample.
         0x49 => decode_sleep_summary_1(body), // parse_api_sleep_summary_1 @ 0x3c74d8
-        0x4c => decode_sleep_summary_2(body), // parse_api_sleep_summary_2 @ 0x3c76c8
         0x4f => decode_sleep_summary_3(body), // parse_api_sleep_summary_3 @ 0x3c78bc
         0x58 => decode_sleep_summary_4(body), // parse_api_sleep_summary_4 @ 0x3c7ad8
         0x7e | 0x7f => decode_real_steps(body), // parse_api_real_steps_features_1/2 @ 0x3c03a4/0x3c0720
@@ -685,17 +685,22 @@ fn decode_sleep_summary_1(body: &[u8]) -> Option<serde_json::Value> {
     }))
 }
 
-/// `sleep_summary_2` (tag `0x4c`): 14-byte record (u64, u16, u32). Field
-/// names/units unresolved in the decompile.
+/// `sleep_summary_2` (tag `0x4c`). The decompile reads it as (u64, u16, u32); the
+/// u64 is four u16 words. The ring writes the record after the `sleep_phase_data`
+/// pages of an analysis. Words 1–3 count the REM, light and deep epochs of that
+/// analysis: on a Gen 3 ring they equal the page counts inside the bedtime window in
+/// 279 of 279 runs, once the zero padding after the last analysed epoch is left out.
 fn decode_sleep_summary_2(body: &[u8]) -> Option<serde_json::Value> {
     if body.len() != 14 {
         return None;
     }
     Some(serde_json::json!({
-        "field_a_u64": u64::from_le_bytes(body[0..8].try_into().unwrap()),
+        "field_a_u16": le16(body, 0),
+        "rem_epochs": le16(body, 2),
+        "light_epochs": le16(body, 4),
+        "deep_epochs": le16(body, 6),
         "field_b_u16": le16(body, 8),
         "field_c_u32": le32(body, 10),
-        "_status": "unvalidated",
     }))
 }
 
@@ -1555,6 +1560,30 @@ mod tests {
         assert_eq!(p[1], "light");
         assert_eq!(p[2], "rem");
         assert_eq!(p[3], "awake");
+    }
+
+    #[test]
+    fn decodes_sleep_summary_2_stage_counts_real_bytes() {
+        let v =
+            decode_sleep_summary_2(&hex::decode("29004b00f601d8000b0236430a09").unwrap()).unwrap();
+        assert_eq!(
+            (
+                v["rem_epochs"].as_u64(),
+                v["light_epochs"].as_u64(),
+                v["deep_epochs"].as_u64()
+            ),
+            (Some(75), Some(502), Some(216))
+        );
+        let v =
+            decode_sleep_summary_2(&hex::decode("03000000080000000f0056150000").unwrap()).unwrap();
+        assert_eq!(
+            (
+                v["rem_epochs"].as_u64(),
+                v["light_epochs"].as_u64(),
+                v["deep_epochs"].as_u64()
+            ),
+            (Some(0), Some(8), Some(0))
+        );
     }
 
     #[test]
